@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package pnp;
+
+import "github.com/ZTP/pnp/common/proto/common.proto";
+
+service PnP {
+    rpc GetPackages (stream ClientPkgRequest) returns (stream ServerPkgResponse) {}
+}
+
+enum ClientMsgType {
+    PKG_ZTP_INIT = 0;
+    PKG_NOT_INSTALLED = 1;
+    PKG_INSTALLED = 2;
+    PKG_VERSION_CHANGED = 3;
+    PKG_VERSION_NO_CHANGE = 4;
+    PKG_UNINSTALL_SUCCESS = 5;
+    PKG_UNINSTALL_FAILED = 6;
+    PKG_INSTALL_SUCCESS = 7;
+    PKG_INSTALL_FAILED = 8;
+}
+
+enum ServerMsgType {
+    IS_PKG_INSTALLED = 0;
+    INSTALL_PKG = 1;
+    INSTALL_PKG_FROM_FILE = 2;
+    IS_PKG_OUTDATED = 3;
+    UNINSTALL_PKG = 4;
+    GET_NEXT_PKG = 5;
+}
+
+enum ServerCmdType {
+    RUN = 0;
+    CONFIG = 1; // Todo
+    INFO = 2;
+    CLOSE_CONN = 3;
+}
+
+message ClientInfo {
+    string osType = 1;
+    string osFlavor = 2;
+    string archType = 3;
+    string MAC_addr = 4;
+}
+
+message CommonClientInfo {
+    common.RequestHeader requestHeader = 1;
+    ClientInfo clientInfo = 2;
+}
+
+message ClientPkgRequest {
+    CommonClientInfo commonClientInfo = 1;
+    ClientMsgType clientMsgType = 2;
+}
+
+message CommonServerResponse {
+    common.ResponseHeader responseHeader = 1;
+    ServerCmdType serverCmdType = 2;
+}
+
+message ServerInstructionPayload {
+    repeated string cmd = 1;
+}
+
+message ServerPkgResponse {
+    CommonServerResponse commonServerResponse = 1;
+    ServerMsgType serverMsgType = 2;
+    ServerInstructionPayload serverInstructionPayload = 3;
+}
+
+
+

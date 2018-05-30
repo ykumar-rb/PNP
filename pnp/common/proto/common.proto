@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package common;
+
+import "github.com/golang/protobuf/ptypes/timestamp/timestamp.proto";
+
+/**
+ * Contains the common header information that is sent with a request.
+ */
+message RequestHeader {
+    Identifiers Identifiers = 1; /// The request identifiers.
+    google.protobuf.Timestamp RequestTimestamp  = 2; /// The request timestamp.
+
+}
+
+/**
+ * Contains the common header information that is sent with a response.
+ */
+message ResponseHeader {
+    Identifiers Identifiers = 1; /// The response identifiers.
+    google.protobuf.Timestamp ResponseTimestamp  = 2; /// The response timestamp.
+}
+
+/**
+ * Contains the identifiers used to uniquely identify a request or response.
+ */
+message Identifiers {
+    string TraceID = 1; /// A UUID used to link multiple service invocations together.
+    string MessageID = 2; /// A UUID used to identify a single request/response message pair.
+}

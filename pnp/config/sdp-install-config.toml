@@ -1,0 +1,80 @@
+# This is a SDP platform install config file
+
+[deploySDP]
+exportEnvParams = [
+  "touch /tmp/pnp-env.sh",
+  "echo export SDP_USER=\"sdp\" >> /tmp/pnp-env.sh",
+  "echo export SDP_NAMESPACE=\"sdp-system\" >> /tmp/pnp-env.sh",
+  "echo export SDP_ARTIFACT_NAME=\"rvbd-sdp-artifact\" >> /tmp/pnp-env.sh",
+  "echo export SDP_USER_PASSWD=\"sdp\" >> /tmp/pnp-env.sh",
+  "echo export SDP_NETWORK_INTERFACE=\"ens33\" >> /tmp/pnp-env.sh",
+  "echo export OFFLINE_INSTALLER_URL=\"http://10.73.40.62/1.0/nightlybuild\" >> /tmp/pnp-env.sh",
+  "source /tmp/pnp-env.sh",
+  "wget -O /tmp/index.html ${OFFLINE_INSTALLER_URL}/?C=M;O=A",
+  "url=$(cat /tmp/index.html | grep ${SDP_ARTIFACT_NAME} | grep tar.gz | tail -1)",
+  "echo export TIMESTAMP=$(echo $url | awk -F 'rvbd-sdp-artifact-|.tar.gz' '{print $2}') >> /tmp/pnp-env.sh",
+  "echo export OFFLINE_INSTALLER_ARTIFACT_URL=${OFFLINE_INSTALLER_URL}/${SDP_ARTIFACT_NAME}-${TIMESTAMP}.tar.gz\" >> /tmp/pnp-env.sh",
+  "echo export OFFLINE_INSTALLER_MD5_URL=${OFFLINE_INSTALLER_URL}/${SDP_ARTIFACT_NAME}-${TIMESTAMP}.md5sum\" >> /tmp/pnp-env.sh"
+]
+checkSDPUser = [
+  "source /tmp/pnp-env.sh",
+  "su - ${SDP_USER}"
+]
+checkSDPMasterStatus = [
+  "source /tmp/pnp-env.sh",
+  "su - ${SDP_USER} -c \"sdp-cli platform status | grep MASTER\"",
+  "su - ${SDP_USER} -c \"! kubectl get pods --namespace ${SDP_NAMESPACE} | grep -v Running\""
+]
+checkSDPSatelliteStatus = [
+  "source /tmp/pnp-env.sh",
+  "su - ${SDP_USER} -c \"sdp-cli platform status | grep SATELLITE\"",
+  "su - ${SDP_USER} -c \"! kubectl get pods --namespace ${SDP_NAMESPACE} | grep -v Running\""
+]
+isSDPArtifactPresent = [
+  "source /tmp/pnp-env.sh",
+  "[ -f /tmp/${SDP_ARTIFACT_NAME}* ]"
+]
+isSDPArtifactLatest = [
+  "source /tmp/pnp-env.sh",
+  "ls /tmp/${SDP_ARTIFACT_NAME}*tar.gz | grep ${TIMESTAMP}"
+]
+deleteOutdatedArtifact = [
+  "source /tmp/pnp-env.sh",
+  "rm -rf /tmp/${SDP_ARTIFACT_NAME}*"
+]
+downloadLatestSDPArtifact = [
+  "source /tmp/pnp-env.sh",
+  "curl -o /tmp/${SDP_ARTIFACT_NAME}-${TIMESTAMP}.tar.gz ${OFFLINE_INSTALLER_ARTIFACT_URL}",
+  "curl -o /tmp/${SDP_ARTIFACT_NAME}-${TIMESTAMP}.md5 ${OFFLINE_INSTALLER_MD5_URL}"
+]
+extractSDPArtifact = [
+  "source /tmp/pnp-env.sh",
+  "tar -zxvf /tmp/${SDP_ARTIFACT_NAME}-${TIMESTAMP}.tar.gz --strip-components=1 -C /tmp/",
+]
+installSDPMaster = [
+  "source /tmp/pnp-env.sh",
+  "cd /tmp/sdp-platform-installer",
+  "./install.sh -m"
+]
+installSDPSatellite = [
+  "source /tmp/pnp-env.sh",
+  "cd /tmp/sdp-platform-installer",
+  "./install.sh -s"
+]
+cleanInstallSDPMaster = [
+  "source /tmp/pnp-env.sh",
+  "cd /tmp/sdp-platform-installer",
+  "./install.sh -m -c"
+]
+cleanInstallSDPSatellite = [
+  "source /tmp/pnp-env.sh",
+  "cd /tmp/sdp-platform-installer",
+  "./install.sh -s -c"
+]
+platformCleanUp = [
+  "source /tmp/pnp-env.sh",
+  "rm -rf /tmp/sdp-platform-installer",
+  "rm -rf /tmp/index.html",
+  "rm -rf /tmp/pnp-env.sh"
+]
+
