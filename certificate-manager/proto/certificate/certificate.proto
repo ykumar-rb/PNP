@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package certificate;
 
-import "github.com/RiverbedTechnology/sdp-ztp/pnp/pnp-proto/pnp.proto";
+import "github.com/ZTP/pnp/pnp-proto/pnp.proto";
 
 service Certificate {
     rpc GetCertificates (ClientMACInfo) returns (ServerCertificate) {}

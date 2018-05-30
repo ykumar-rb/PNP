@@ -1,7 +1,7 @@
 package helper
 
 import (
-	"github.com/RiverbedTechnology/sdp-ztp/pnp/util/color"
+	"github.com/ZTP/pnp/util/color"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -32,6 +32,25 @@ func Encrypt(data []byte, passphrase string) []byte {
 	return ciphertext
 }
 
+func Decrypt(data []byte, passphrase string) []byte {
+	key := []byte(createHash(passphrase))
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		color.Fatalf("Error: ", err)
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		color.Fatalf("Error: ", err)
+	}
+	nonceSize := gcm.NonceSize()
+	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		color.Fatalf("Error: ", err)
+	}
+	return plaintext
+}
+
 func GetIPv4ForInterfaceName(ifname string) (ifaceip *net.IPNet) {
 	interfaces, _ := net.Interfaces()
 	for _, inter := range interfaces {
@@ -56,4 +75,16 @@ func GetIPFromIPwithCIDR(ipCidr string) string {
 	ipCidrArr := strings.Split(ipCidr, "/")
 	ip := ipCidrArr[0]
 	return ip
+}
+
+func GetMACForInterfaceName(ifname string) (string) {
+	interfaces, _ := net.Interfaces()
+	for _, inter := range interfaces {
+		if inter.Name == ifname {
+			mac := inter.HardwareAddr.String()
+			return mac
+		}
+	}
+	color.Fatalf("\nCheck the interface name provided")
+	return ""
 }

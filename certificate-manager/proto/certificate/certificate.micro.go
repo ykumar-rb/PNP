@@ -16,7 +16,7 @@ package certificate
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import _ "github.com/RiverbedTechnology/sdp-ztp/pnp/pnp-proto"
+import _ "github.com/ZTP/pnp/pnp-proto"
 
 import (
 	client "github.com/micro/go-micro/client"
