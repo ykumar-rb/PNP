@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/micro/go-web"
 	"github.com/emicklei/go-restful"
-	"github.com/RiverbedTechnology/sdp-ztp/pnp/util/color"
-	"github.com/RiverbedTechnology/sdp-ztp/onboarder/handlers"
+	"github.com/ZTP/pnp/util/color"
+	"github.com/ZTP/onboarder/handlers"
 )
 var onboarderSvc = handlers.Onboarder{}
 
