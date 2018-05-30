@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package certificate;
+
+import "github.com/RiverbedTechnology/sdp-ztp/pnp/pnp-proto/pnp.proto";
+
+service Certificate {
+    rpc GetCertificates (ClientMACInfo) returns (ServerCertificate) {}
+}
+
+message ClientMACInfo {
+    pnp.CommonClientInfo commonClientInfo = 1;
+    string MAC = 2;
+}
+
+message ServerCertificate {
+    pnp.CommonServerResponse commonServerResponse = 1;
+    bytes serverCert = 2;
+    string responseMessage = 3;
+}
