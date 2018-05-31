@@ -7,15 +7,15 @@ import (
 	"os"
 	"log"
 	"github.com/golang/protobuf/ptypes"
-	"github.com/ZTP/pnp/common"
 	"github.com/ZTP/pnp/config"
+	"github.com/ZTP/pnp/util/server"
 	pb "github.com/ZTP/pnp/common/proto"
 	proto "github.com/ZTP/pnp/pnp-proto"
 )
 
 type PnPService struct {}
 
-func setPkgServerResponse (pkg common.Package,
+func setPkgServerResponse (pkg server.Package,
 	clientMsgType proto.ClientMsgType, numPkgsToInstall int) (cmdType proto.ServerCmdType,
 	serverMsgType proto.ServerMsgType, exeCmd []string){
 
@@ -74,10 +74,10 @@ func setPkgServerResponse (pkg common.Package,
 
 func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPackagesStream) (err error) {
 	serverPkgResponse := &proto.ServerPkgResponse{}
-	packageInfo := &common.PackageInfo{}
+	packageInfo := &server.PackageInfo{}
 	pwd, _ := os.Getwd()
 
-	if err = common.GetConfigFromToml(pwd + config.PackageFilePath, packageInfo); err != nil {
+	if err = server.GetConfigFromToml(pwd + config.PackageFilePath, packageInfo); err != nil {
 		log.Fatalf("Unable to get config data from JSON file, Error: %v", err)
 	}
 

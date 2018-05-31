@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"fmt"
+	"strings"
 )
 
 func ExecuteCommand (cmdString string) (errStr string, err error){
@@ -39,5 +40,15 @@ func ExecuteCommand (cmdString string) (errStr string, err error){
 
 	errStr = string(stderrBuf.Bytes())
 	return errStr, err
+}
+
+func ExecuteServerInstructions(cmdString []string) (exeErr error) {
+	var errStr string
+	cmd := strings.Join(cmdString, " && ")
+	errStr, exeErr = ExecuteCommand(cmd)
+	if exeErr != nil {
+		fmt.Printf("\nCommand <%v> failed to execute\nErrorString: %v\nError: %v\n", cmd, errStr, exeErr)
+	}
+	return exeErr
 }
 

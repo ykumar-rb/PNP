@@ -8,7 +8,7 @@ import (
 	"github.com/ZTP/pnp/config"
 	"github.com/micro/cli"
 	"github.com/micro/go-micro/transport"
-	"github.com/ZTP/pnp/util/color"
+	"github.com/ZTP/pnp/common/color"
 	handler "github.com/ZTP/pnp/handlers"
 	proto "github.com/ZTP/pnp/pnp-proto"
 )

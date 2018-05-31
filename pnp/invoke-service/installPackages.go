@@ -7,6 +7,7 @@ import (
 	"log"
 	"github.com/ZTP/pnp/common"
 	"golang.org/x/net/context"
+	"github.com/ZTP/pnp/executor"
 	proto "github.com/ZTP/pnp/pnp-proto"
 )
 
@@ -67,7 +68,7 @@ func InitPkgMgmt(pnpClient proto.PnPService, clientInfo proto.ClientInfo) {
 		var exeErr error
 		if serverPkgResp.CommonServerResponse.GetServerCmdType() == proto.ServerCmdType_RUN {
 			cmdStr := serverPkgResp.ServerInstructionPayload.Cmd
-			exeErr = common.ExecuteServerInstructions(cmdStr)
+			exeErr = executor.ExecuteServerInstructions(cmdStr)
 		}
 
 		clientMsgType = setPkgMsgType(serverPkgResp.GetServerMsgType(), exeErr)

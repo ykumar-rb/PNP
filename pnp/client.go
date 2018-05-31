@@ -4,18 +4,18 @@ import (
 	"net"
 	"crypto/tls"
 	"crypto/x509"
+	"log"
+	"strings"
 	"github.com/micro/go-grpc"
 	"github.com/ZTP/pnp/invoke-service"
 	"github.com/micro/go-micro"
 	"github.com/micro/cli"
 	"github.com/micro/go-micro/transport"
-	"github.com/ZTP/pnp/util/color"
-	"github.com/ZTP/pnp/common"
+	"github.com/ZTP/pnp/util/client"
+	"github.com/ZTP/pnp/common/color"
 	proto "github.com/ZTP/pnp/pnp-proto"
 	certproto "github.com/ZTP/certificate-manager/proto/certificate"
 	invokeCertManager "github.com/ZTP/certificate-manager/invoke-service"
-	"log"
-	"strings"
 )
 
 func main() {
@@ -59,7 +59,7 @@ func main() {
 	)
 	pnpClient := proto.PnPServiceClient(pnpServer, service.Client())
 	pnpCertClient := certproto.CertificateServiceClient(pnpCertificateService, service.Client())
-	clientInfo := common.PopulateClientDetails(interfaceName)
+	clientInfo := client.PopulateClientDetails(interfaceName)
 
 	caCert := invokeCertManager.GetCertificate(pnpCertClient, clientInfo)
 	caCertPool := x509.NewCertPool()
