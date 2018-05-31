@@ -5,7 +5,7 @@ import (
 	"github.com/micro/go-grpc"
 	"github.com/micro/go-micro"
 	"github.com/micro/cli"
-	"github.com/ZTP/pnp/util/color"
+	"github.com/ZTP/pnp/common/color"
 	certHandler "github.com/ZTP/certificate-manager/handlers"
 	certproto "github.com/ZTP/certificate-manager/proto/certificate"
 	"github.com/ZTP/certificate-manager/helper"

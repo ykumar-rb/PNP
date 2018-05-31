@@ -4,7 +4,7 @@ import (
 	"os"
 	"net/http"
 	"fmt"
-	log "github.com/ZTP/pnp/util/color"
+	log "github.com/ZTP/pnp/common/color"
 	"io/ioutil"
 	"encoding/json"
 )

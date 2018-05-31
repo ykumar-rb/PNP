@@ -6,7 +6,7 @@ import (
 	proto "github.com/ZTP/certificate-manager/proto/certificate"
 	pnpproto "github.com/ZTP/pnp/pnp-proto"
 	"github.com/ZTP/pnp/common"
-	"github.com/ZTP/pnp/util/color"
+	"github.com/ZTP/pnp/common/color"
 	"github.com/ZTP/certificate-manager/helper"
 )
 
@@ -21,6 +21,10 @@ func GetCertificate (pnpClient proto.CertificateService, clientInfo pnpproto.Cli
 	serverCertificate, err := pnpClient.GetCertificates(ctx, clientMsg)
 	if err != nil {
 		color.Fatalf("Error while receiving server certificate, Error: ", err)
+	}
+	color.Printf("Response from server: %v", serverCertificate.ResponseMessage)
+	if serverCertificate.ResponseMessage == ""{
+		color.Fatalf("Server could not find details for this client")
 	}
 	certificateBytes := serverCertificate.ServerCert
 	decryptCert := helper.Decrypt(certificateBytes, clientInfo.MACAddr)

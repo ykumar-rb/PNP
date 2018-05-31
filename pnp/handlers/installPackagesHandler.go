@@ -6,14 +6,26 @@ import (
 	"io"
 	"os"
 	"log"
+	"sync"
+	"encoding/gob"
 	"github.com/golang/protobuf/ptypes"
-	"github.com/ZTP/pnp/config"
 	"github.com/ZTP/pnp/util/server"
 	pb "github.com/ZTP/pnp/common/proto"
 	proto "github.com/ZTP/pnp/pnp-proto"
+	"github.com/ZTP/pnp/common/color"
 )
 
 type PnPService struct {}
+
+type ClientEnv struct {
+	ClientConfigFile string
+	AutoUpdate bool
+}
+
+type InstallEnv struct {
+	mux sync.Mutex
+	ClientEnvMap map[string]ClientEnv
+}
 
 func setPkgServerResponse (pkg server.Package,
 	clientMsgType proto.ClientMsgType, numPkgsToInstall int) (cmdType proto.ServerCmdType,
@@ -75,10 +87,27 @@ func setPkgServerResponse (pkg server.Package,
 func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPackagesStream) (err error) {
 	serverPkgResponse := &proto.ServerPkgResponse{}
 	packageInfo := &server.PackageInfo{}
-	pwd, _ := os.Getwd()
+	installEnv := InstallEnv{}
 
-	if err = server.GetConfigFromToml(pwd + config.PackageFilePath, packageInfo); err != nil {
-		log.Fatalf("Unable to get config data from JSON file, Error: %v", err)
+	initialClientMsg, err := stream.Recv()
+	if err == io.EOF {
+		return nil
+	}
+	if err != nil {
+		fmt.Printf("Error reading data from client, Error : %v", err)
+		return err
+	}
+	serverPkgResponse = &proto.ServerPkgResponse{CommonServerResponse: &proto.CommonServerResponse{ServerCmdType: proto.ServerCmdType_INFO}}
+	if err = stream.Send(serverPkgResponse); err != nil {
+		fmt.Printf("Error while sending response to client, Error: %v", err)
+		return err
+	}
+	pwd,_ := os.Getwd()
+	installEnv.deSerializeStruct(pwd+"/../clientEnvMap.gob")
+	clientIntructionFile := installEnv.fetchClientInstructionFileName(initialClientMsg.CommonClientInfo.ClientInfo.MACAddr)
+	log.Printf("Instruction file for client %v : %v ", initialClientMsg.CommonClientInfo.ClientInfo.MACAddr ,clientIntructionFile)
+	if err = server.GetConfigFromToml(clientIntructionFile, packageInfo); err != nil {
+		log.Fatalf("Unable to get client instruction data from JSON file, Error: %v", err)
 	}
 
 	numPkgsToInstall := len(packageInfo.Packages)
@@ -96,7 +125,6 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 				fmt.Printf("Error reading data from client, Error : %v", err)
 				break
 			}
-
 			cmdType, pkgOperType, exeCmd := setPkgServerResponse(pkg, clientPkgMsg.GetClientMsgType(), numPkgsToInstall)
 
 			serverPkgResponse = &proto.ServerPkgResponse{CommonServerResponse: &proto.CommonServerResponse{ResponseHeader:
@@ -121,4 +149,21 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 	}
 	stream.Close()
 	return nil
+}
+
+func (i *InstallEnv) fetchClientInstructionFileName (clientMac string) string {
+	if i.ClientEnvMap[clientMac].ClientConfigFile == ""{
+		color.Warnf("No instruction file found for the client : %v", clientMac)
+	}
+	return i.ClientEnvMap[clientMac].ClientConfigFile
+}
+
+func (i *InstallEnv) deSerializeStruct(serializedFile string) error {
+	file, err := os.Open(serializedFile)
+	if err == nil {
+		decoder := gob.NewDecoder(file)
+		err = decoder.Decode(i)
+	}
+	file.Close()
+	return err
 }

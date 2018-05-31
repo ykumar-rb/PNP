@@ -66,6 +66,11 @@ func InitPkgMgmt(pnpClient proto.PnPService, clientInfo proto.ClientInfo) {
 		}
 
 		var exeErr error
+
+		if serverPkgResp.CommonServerResponse.GetServerCmdType() == proto.ServerCmdType_INFO {
+			continue
+		}
+
 		if serverPkgResp.CommonServerResponse.GetServerCmdType() == proto.ServerCmdType_RUN {
 			cmdStr := serverPkgResp.ServerInstructionPayload.Cmd
 			exeErr = executor.ExecuteServerInstructions(cmdStr)

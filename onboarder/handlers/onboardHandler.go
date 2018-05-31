@@ -6,9 +6,11 @@ import(
 	"io/ioutil"
 	"github.com/emicklei/go-restful"
 	"encoding/json"
-	log "github.com/RiverbedTechnology/sdp-ztp/pnp/util/color"
+	log "github.com/ZTP/pnp/common/color"
 	"net/http"
 	"errors"
+	"encoding/gob"
+	"github.com/ZTP/onboarder/config"
 )
 
 const clientList = "RegisteredClientList.toml"
@@ -25,6 +27,11 @@ type ClientConfig struct {
 
 type ClientInfoList struct {
 	ClientConfigs []ClientConfig
+}
+
+type InstallEnv struct {
+	mux          sync.Mutex
+	ClientEnvMap map[string]config.ClientEnv
 }
 
 func (o *Onboarder) GetAllRegisteredClients(req *restful.Request, rsp *restful.Response) {
@@ -191,4 +198,48 @@ func (o *Onboarder) initFile() {
 	o.clientList = clientListBytes
 	o.clientListFile = clientListFile
 	defer o.mux.Unlock()
+}
+
+func (e *InstallEnv) CreateEnvironment (req *restful.Request, rsp *restful.Response) {
+	log.Printf("POST request : /pnp/environment")
+	newConfigEnv := &config.ConfigEnvironment{}
+	clientEnv := &config.ClientEnv{}
+	requestByt, err := ioutil.ReadAll(req.Request.Body)
+	if err != nil {
+		rsp.WriteError(http.StatusInternalServerError, err)
+		log.Fatalf("", err)
+	}
+	if err := json.Unmarshal(requestByt, &newConfigEnv); err != nil {
+		rsp.WriteError(http.StatusInternalServerError, err)
+		log.Fatalf("", err)
+	}
+	e.mux.Lock()
+	clientEnv.ClientConfigFile = newConfigEnv.InstructionFileName
+	clientEnv.AutoUpdate = newConfigEnv.AutoUpdate
+	for i := 0; i < len(newConfigEnv.Mac); i++ {
+		e.ClientEnvMap[newConfigEnv.Mac[i]] = *clientEnv
+	}
+	err = e.serializeStruct()
+	if err != nil {
+		rsp.WriteError(http.StatusInternalServerError, err)
+		log.Fatalf("", err)
+	}
+	defer e.mux.Unlock()
+	rsp.WriteHeader(http.StatusOK)
+}
+
+func (e *InstallEnv) UpdateEnvironment (req *restful.Request, rsp *restful.Response) {
+	e.CreateEnvironment(req, rsp)
+}
+
+func (e *InstallEnv) serializeStruct() error {
+	pwd,_ := os.Getwd()
+	file, err := os.Create(pwd+"/../clientEnvMap.gob")
+	if err == nil {
+		encoder := gob.NewEncoder(file)
+		encoder.Encode(e)
+	}
+	log.Printf("Serial file name: %v", file.Name())
+	file.Close()
+	return err
 }

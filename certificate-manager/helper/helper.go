@@ -1,7 +1,7 @@
 package helper
 
 import (
-	"github.com/ZTP/pnp/util/color"
+	"github.com/ZTP/pnp/common/color"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"

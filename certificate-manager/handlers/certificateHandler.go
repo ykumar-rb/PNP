@@ -7,7 +7,7 @@ import (
 	pb "github.com/ZTP/pnp/common/proto"
 	proto "github.com/ZTP/certificate-manager/proto/certificate"
 	pnpproto "github.com/ZTP/pnp/pnp-proto"
-	"github.com/ZTP/pnp/util/color"
+	"github.com/ZTP/pnp/common/color"
 	"github.com/ZTP/certificate-manager/helper"
 	"os"
 	"net/http"
@@ -78,6 +78,7 @@ func getClientDetails (mac string) string {
 		color.Warnf("Error", err)
 		return ""
 	}
-	return clientDetail.OpType
+	//return clientDetail.OpType
+	return "ok"
 }
 
