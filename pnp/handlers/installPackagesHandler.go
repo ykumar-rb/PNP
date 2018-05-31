@@ -77,7 +77,7 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 	packageInfo := &common.PackageInfo{}
 	pwd, _ := os.Getwd()
 
-	if err = common.GetConfigFromJson(pwd + config.PackageFilePath, packageInfo); err != nil {
+	if err = common.GetConfigFromToml(pwd + config.PackageFilePath, packageInfo); err != nil {
 		log.Fatalf("Unable to get config data from JSON file, Error: %v", err)
 	}
 

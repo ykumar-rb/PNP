@@ -2,23 +2,22 @@ package common
 
 import (
 	"io/ioutil"
-	"encoding/json"
 	"github.com/BurntSushi/toml"
 )
 
 type Package struct {
-	Name                  string        `json:"name"`
-	Version               string        `json:"version"`
-	CheckInstalledCmd     []string      `json:"checkInstalledCmd"`
-	CheckInstalledVersion []string      `json:"checkInstalledVersion"`
-	UnInstallInstructions []string      `json:"unInstallInstructions"`
-	InstallFromFile       string        `json:"installFromFile"`
-	InstallInstructions   []string      `json:"installInstructions"`
-	UpdateRepo            []string      `json:"updateRepo"`
+	Name string `toml:"name"`
+	Version string `toml:"version"`
+	CheckInstalledCmd []string `toml:"checkInstalledCmd"`
+	CheckInstalledVersion []string `toml:"checkInstalledVersion"`
+	UnInstallInstructions []string `toml:"unInstallInstructions"`
+	InstallFromFile string `toml:"installFromFile"`
+	InstallInstructions []string `toml:"installInstructions"`
+	UpdateRepo []string `toml:"updateRepo"`
 }
 
 type PackageInfo struct {
-	Packages []Package `json:"packages"`
+	Packages []Package `toml:"packages"`
 }
 
 type DeploySDP struct {
@@ -40,19 +39,6 @@ type DeploySDP struct {
 
 type PlatformDeploy struct {
 	DeployInfo DeploySDP `toml:"deploySDP"`
-}
-
-func GetConfigFromJson(file string, configStruct interface{}) (err error) {
-	b, err := ioutil.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	if err = json.Unmarshal(b, configStruct); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func GetConfigFromToml(file string, configStruct interface{}) (err error) {

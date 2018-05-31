@@ -1,0 +1,126 @@
+[[packages]]
+name = "make"
+version = ""
+checkInstalledCmd = [
+  "which make"
+]
+checkInstalledVersion = [
+  ""
+]
+unInstallInstructions = [
+  ""
+]
+installFromFile = ""
+installInstructions = [
+  "apt-get -y update",
+  "apt-get install -y make"
+]
+updateRepo = [
+""
+]
+
+[[packages]]
+name = "git"
+version = ""
+checkInstalledCmd = [
+  "which git"
+]
+checkInstalledVersion = [
+  ""
+]
+unInstallInstructions = [
+  ""
+]
+installFromFile = ""
+installInstructions = [
+  "apt-get -y update",
+  "apt-get install -y git"
+]
+updateRepo = [
+""
+]
+
+
+[[packages]]
+name = "docker-ce"
+version = "17.03.2~ce-0~ubuntu-xenial"
+checkInstalledCmd = [
+  "which docker"
+]
+checkInstalledVersion = [
+  ""
+]
+unInstallInstructions = [
+  ""
+]
+installFromFile = ""
+installInstructions = [
+  "apt-get install -y docker-ce"
+]
+updateRepo = [
+  "apt-get -y update",
+  "apt-get install -y apt-transport-https ca-certificates curl software-properties-common",
+  "curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -",
+  "add-apt-repository 'deb [arch=amd64] https://download.docker.com/linux/debian jessie stable'",
+  "apt-get -y update"
+]
+
+[[packages]]
+name = "kubernetes"
+version = "1.9.3-00"
+checkInstalledCmd = [
+  "which kubelet"
+]
+checkInstalledVersion = [
+  ""
+]
+unInstallInstructions = [
+  ""
+]
+installFromFile = ""
+installInstructions = [
+  "kubePkgs='kubeadm kubectl kubelet'",
+  "echo $kubePkgs",
+  "apt-get install -y $kubePkgs",
+  "swapoff -a",
+  "kubeadm init",
+  "mkdir -p $HOME/.kube",
+  "cp -i /etc/kubernetes/admin.conf $HOME/.kube/config",
+  "chown $(id -u):$(id -g) $HOME/.kube/config",
+  "KUBE_VER=$(kubectl version | base64 | tr -d '\n') && kubectl apply -f https://cloud.weave.works/k8s/net?k8s-version=${KUBE_VER}",
+  "kubectl taint nodes --all node-role.kubernetes.io/master-"
+]
+updateRepo = [
+  "apt-get -y update",
+  "apt-get -y install git curl apt-transport-https",
+  "curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -",
+  "add-apt-repository 'deb http://apt.kubernetes.io/ kubernetes-xenial main'",
+  "apt-get -y update"
+]
+
+[[packages]]
+name = "tsuru"
+version = ""
+checkInstalledCmd = [
+  "which tsuru"
+]
+checkInstalledVersion = [
+  ""
+]
+unInstallInstructions = [
+  ""
+]
+installFromFile = ""
+installInstructions = [
+  "apt-get install -y gcc",
+  "TSURU_NOW_SCRIPT_URL='https://raw.githubusercontent.com/tsuru/now/master/run.bash' && curl -sL ${TSURU_NOW_SCRIPT_URL} > /tmp/tsuru-now.bash",
+  "chmod +x /tmp/tsuru-now.bash",
+  "TSURU_MODE='stable' && TSURU_NOW_HOOK_URL='https://raw.githubusercontent.com/tsuru/tsuru/master/misc/git-hooks/pre-receive' && TSURU_NOW_OPTIONS='--tsuru-from-source' && /tmp/tsuru-now.bash --tsuru-pkg-${TSURU_MODE} --hook-url ${TSURU_NOW_HOOK_URL} --hook-name pre-receive ${TSURU_NOW_OPTIONS}",
+  "wget -q --no-check-certificate https://github.com/tsuru/tsuru-client/releases/download/1.5.1/tsuru_1.5.1_linux_386.tar.gz",
+  "tar -xzvf tsuru_1.5.1_linux_386.tar.gz",
+  "chmod +x tsuru",
+  "mv tsuru /usr/local/bin/"
+]
+updateRepo = [
+  ""
+]
