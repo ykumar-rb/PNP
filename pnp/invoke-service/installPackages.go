@@ -37,7 +37,7 @@ func setPkgMsgType(serverPkgOperType proto.ServerMsgType, exeErr error) (clientP
 	return
 }
 
-func InstallPackages(pnpClient proto.PnPService) {
+func InstallMgmt(pnpClient proto.PnPService) {
 	cxt, cancel := context.WithTimeout(context.Background(), time.Minute*20)
 	defer cancel()
 	stream, err := pnpClient.GetPackages(cxt)

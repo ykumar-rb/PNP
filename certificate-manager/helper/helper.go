@@ -77,14 +77,3 @@ func GetIPFromIPwithCIDR(ipCidr string) string {
 	return ip
 }
 
-func GetMACForInterfaceName(ifname string) (string) {
-	interfaces, _ := net.Interfaces()
-	for _, inter := range interfaces {
-		if inter.Name == ifname {
-			mac := inter.HardwareAddr.String()
-			return mac
-		}
-	}
-	color.Fatalf("\nCheck the interface name provided")
-	return ""
-}

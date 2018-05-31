@@ -1,7 +1,7 @@
 package main
 
 import (
-	"os"
+	"net"
 	"crypto/tls"
 	"crypto/x509"
 	"github.com/micro/go-grpc"
@@ -13,16 +13,14 @@ import (
 	proto "github.com/ZTP/pnp/pnp-proto"
 	certproto "github.com/ZTP/certificate-manager/proto/certificate"
 	invokeCertManager "github.com/ZTP/certificate-manager/invoke-service"
+	"log"
+	"strings"
 )
 
 func main() {
 	var pnpServer string
-	var pnpOpType string
+	var interfaceName string
 	var pnpCertificateService string
-	interfaceName := os.Getenv("SDP_NETWORK_INTERFACE")
-	if interfaceName == "" {
-		color.Fatalf("Provide \"SDP_NETWORK_INTERFACE\" environment variable")
-	}
 	service := grpc.NewService(
 		micro.Flags(
 			cli.StringFlag{
@@ -31,9 +29,9 @@ func main() {
 				Usage: "PnP server name registered to registry",
 			},
 			cli.StringFlag{
-				Name : "pnp_op_type",
-				Usage: "Specifies pnp operation type, supported values are" +
-					"installPackages, deploySDPMaster, deploySDPSatellite",
+				Name: "pnp_interface",
+				Value: "ens33",
+				Usage: "Client interface used to communicate with PnP Server",
 			},
 			cli.StringFlag{
 				Name : "certificate_manager",
@@ -45,12 +43,17 @@ func main() {
 	service.Init(
 		micro.Action(func(c *cli.Context) {
 			pnpServer = c.String("pnp_server")
-			pnpOpType = c.String("pnp_op_type")
-			pnpCertificateService = c.String("certificate_manager")
-			if pnpOpType == "" {
-				color.Fatalf("PnP operation type not specified, supported values are" +
-					"installPackages, deploySDPMaster, deploySDPSatellite")
+			interfaceName = c.String("pnp_interface")
+
+			pnp_interf, err := net.InterfaceByName(interfaceName)
+			if err != nil {
+				log.Fatalf("Unable to load interface specified, Error: %v", err)
 			}
+
+			if ! strings.Contains(pnp_interf.Flags.String(), "up") {
+				log.Fatalf("Specified network interface %v is DOWN, specify running network interface", interfaceName)
+			}
+			pnpCertificateService = c.String("certificate_manager")
 		}),
 	)
 	pnpClient := proto.PnPServiceClient(pnpServer, service.Client())
@@ -67,7 +70,10 @@ func main() {
 		grpc.WithTLS(tlsConfig),
 	)
 
-	switch pnpOpType {
+	color.Println("Initializing package management...")
+	invoke.InstallMgmt(pnpClient)
+
+	/*switch pnpOpType {
 	case "installPackages":
 		{
 			color.Println("Initializing package installation..")
@@ -78,5 +84,5 @@ func main() {
 			color.Println("PnP operation type not specified, supported values are " +
 			"installPackages")
 		}
-	}
+	}*/
 }

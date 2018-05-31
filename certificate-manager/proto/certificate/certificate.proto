@@ -5,12 +5,11 @@ package certificate;
 import "github.com/ZTP/pnp/pnp-proto/pnp.proto";
 
 service Certificate {
-    rpc GetCertificates (ClientMACInfo) returns (ServerCertificate) {}
+    rpc GetCertificates (ClientInfo) returns (ServerCertificate) {}
 }
 
-message ClientMACInfo {
+message ClientInfo {
     pnp.CommonClientInfo commonClientInfo = 1;
-    string MAC = 2;
 }
 
 message ServerCertificate {

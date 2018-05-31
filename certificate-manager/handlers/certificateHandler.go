@@ -23,10 +23,10 @@ type ClientConfig struct {
 	OpType	string	`json:"OpType"`
 }
 
-func (s *PnPCertificateService) GetCertificates (ctx context.Context, clientInfo *proto.ClientMACInfo, certificateResponse *proto.ServerCertificate) (err error) {
-	var responseMsg = ""
-	clientMAC := clientInfo.MAC
-	color.Printf("Received certificate request from: %v", clientMAC)
+func (s *PnPCertificateService) GetCertificates (ctx context.Context, clientInfo *proto.ClientInfo, certificateResponse *proto.ServerCertificate) (err error) {
+	var responseMsg string
+	clientMAC := clientInfo.CommonClientInfo.ClientInfo.MACAddr
+	color.Printf("Received certificate request from client, Client MAC: %v", clientMAC)
 	responseMsg = getClientDetails(clientMAC)
 	pwd, _ := os.Getwd()
 	certFile, err := ioutil.ReadFile(pwd+"/certs/server.crt")
@@ -34,12 +34,12 @@ func (s *PnPCertificateService) GetCertificates (ctx context.Context, clientInfo
 		color.Fatalf("Error reading certificate file", err)
 		return err
 	}
-	encrCertFile := helper.Encrypt([]byte(certFile), clientMAC)
+	encryptCertFile := helper.Encrypt([]byte(certFile), clientMAC)
 	*certificateResponse = proto.ServerCertificate{CommonServerResponse: &pnpproto.CommonServerResponse{
 		ResponseHeader: &pb.ResponseHeader{Identifiers: &pb.Identifiers{TraceID: clientInfo.
 			CommonClientInfo.RequestHeader.Identifiers.TraceID, MessageID: clientInfo.
 			CommonClientInfo.RequestHeader.Identifiers.MessageID}, ResponseTimestamp:
-		ptypes.TimestampNow()},}, ServerCert: encrCertFile, ResponseMessage: responseMsg}
+		ptypes.TimestampNow()},}, ServerCert: encryptCertFile, ResponseMessage: responseMsg}
 	return
 }
 

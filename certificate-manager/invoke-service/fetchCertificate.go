@@ -10,25 +10,20 @@ import (
 	"github.com/ZTP/certificate-manager/helper"
 )
 
-func GetCertificate (pnpClient proto.CertificateService, intf string) []byte{
+func GetCertificate (pnpClient proto.CertificateService, ifname string) []byte{
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
-	MACAddr := helper.GetMACForInterfaceName(intf)
 	defer cancel()
-	clientInfo := common.PopulateClientDetails()
-	clientMsg := &proto.ClientMACInfo{CommonClientInfo: &pnpproto.CommonClientInfo{RequestHeader:
-	common.NewReqHdrGenerateTraceAndMessageID(), ClientInfo: &clientInfo}, MAC: MACAddr}
-	//serverGetCertificateResponse := &proto.ServerCertificate{}
 
-	color.Printf("\n\n[ CLIENT: FETCH CERTIFICATE ] Sending Request Message With MAC : %v\n\n", MACAddr)
-	serverGetCertificateResponse, err := pnpClient.GetCertificates(ctx, clientMsg)
+	clientInfo := common.PopulateClientDetails(ifname)
+	clientMsg := &proto.ClientInfo{CommonClientInfo: &pnpproto.CommonClientInfo{RequestHeader:
+	common.NewReqHdrGenerateTraceAndMessageID(), ClientInfo: &clientInfo}}
+
+	color.Printf("\n\n[ CLIENT: FETCH CERTIFICATE ] Sending Request Message With MAC : %v\n\n", clientInfo.MACAddr)
+	serverCertificate, err := pnpClient.GetCertificates(ctx, clientMsg)
 	if err != nil {
-		color.Fatalf("Error while writing receiving server certificate ", err)
+		color.Fatalf("Error while receiving server certificate, Error: ", err)
 	}
-	certificateBytes := serverGetCertificateResponse.ServerCert
-	decrCert := helper.Decrypt(certificateBytes, MACAddr)
-	/*ioutil.WriteFile("server.crt", certificateBytes, 0644)
-	if err != nil {
-		color.Fatalf("Error while writing certificate to file ", err)
-	}*/
-	return decrCert
+	certificateBytes := serverCertificate.ServerCert
+	decryptCert := helper.Decrypt(certificateBytes, clientInfo.MACAddr)
+	return decryptCert
 }

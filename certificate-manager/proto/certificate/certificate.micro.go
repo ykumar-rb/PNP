@@ -8,7 +8,7 @@ It is generated from these files:
 	certificate.proto
 
 It has these top-level messages:
-	ClientMACInfo
+	ClientInfo
 	ServerCertificate
 */
 package certificate
@@ -43,7 +43,7 @@ var _ server.Option
 // Client API for Certificate service
 
 type CertificateService interface {
-	GetCertificates(ctx context.Context, in *ClientMACInfo, opts ...client.CallOption) (*ServerCertificate, error)
+	GetCertificates(ctx context.Context, in *ClientInfo, opts ...client.CallOption) (*ServerCertificate, error)
 }
 
 type certificateService struct {
@@ -64,7 +64,7 @@ func CertificateServiceClient(serviceName string, c client.Client) CertificateSe
 	}
 }
 
-func (c *certificateService) GetCertificates(ctx context.Context, in *ClientMACInfo, opts ...client.CallOption) (*ServerCertificate, error) {
+func (c *certificateService) GetCertificates(ctx context.Context, in *ClientInfo, opts ...client.CallOption) (*ServerCertificate, error) {
 	req := c.c.NewRequest(c.serviceName, "Certificate.GetCertificates", in)
 	out := new(ServerCertificate)
 	err := c.c.Call(ctx, req, out, opts...)
@@ -77,7 +77,7 @@ func (c *certificateService) GetCertificates(ctx context.Context, in *ClientMACI
 // Server API for Certificate service
 
 type CertificateHandler interface {
-	GetCertificates(context.Context, *ClientMACInfo, *ServerCertificate) error
+	GetCertificates(context.Context, *ClientInfo, *ServerCertificate) error
 }
 
 func RegisterCertificateHandler(s server.Server, hdlr CertificateHandler, opts ...server.HandlerOption) {
@@ -88,6 +88,6 @@ type Certificate struct {
 	CertificateHandler
 }
 
-func (h *Certificate) GetCertificates(ctx context.Context, in *ClientMACInfo, out *ServerCertificate) error {
+func (h *Certificate) GetCertificates(ctx context.Context, in *ClientInfo, out *ServerCertificate) error {
 	return h.CertificateHandler.GetCertificates(ctx, in, out)
 }
