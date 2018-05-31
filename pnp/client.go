@@ -10,6 +10,7 @@ import (
 	"github.com/micro/cli"
 	"github.com/micro/go-micro/transport"
 	"github.com/ZTP/pnp/util/color"
+	"github.com/ZTP/pnp/common"
 	proto "github.com/ZTP/pnp/pnp-proto"
 	certproto "github.com/ZTP/certificate-manager/proto/certificate"
 	invokeCertManager "github.com/ZTP/certificate-manager/invoke-service"
@@ -58,7 +59,9 @@ func main() {
 	)
 	pnpClient := proto.PnPServiceClient(pnpServer, service.Client())
 	pnpCertClient := certproto.CertificateServiceClient(pnpCertificateService, service.Client())
-	caCert := invokeCertManager.GetCertificate(pnpCertClient, interfaceName)
+	clientInfo := common.PopulateClientDetails(interfaceName)
+
+	caCert := invokeCertManager.GetCertificate(pnpCertClient, clientInfo)
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(caCert)
 	tlsConfig := &tls.Config{
@@ -71,18 +74,5 @@ func main() {
 	)
 
 	color.Println("Initializing package management...")
-	invoke.InstallMgmt(pnpClient)
-
-	/*switch pnpOpType {
-	case "installPackages":
-		{
-			color.Println("Initializing package installation..")
-			invoke.InstallPackages(pnpClient)
-		}
-	default:
-		{
-			color.Println("PnP operation type not specified, supported values are " +
-			"installPackages")
-		}
-	}*/
+	invoke.InitPkgMgmt(pnpClient, clientInfo)
 }

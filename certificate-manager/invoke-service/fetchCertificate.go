@@ -10,11 +10,10 @@ import (
 	"github.com/ZTP/certificate-manager/helper"
 )
 
-func GetCertificate (pnpClient proto.CertificateService, ifname string) []byte{
+func GetCertificate (pnpClient proto.CertificateService, clientInfo pnpproto.ClientInfo) []byte{
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()
 
-	clientInfo := common.PopulateClientDetails(ifname)
 	clientMsg := &proto.ClientInfo{CommonClientInfo: &pnpproto.CommonClientInfo{RequestHeader:
 	common.NewReqHdrGenerateTraceAndMessageID(), ClientInfo: &clientInfo}}
 

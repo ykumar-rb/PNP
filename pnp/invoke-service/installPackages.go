@@ -37,11 +37,10 @@ func setPkgMsgType(serverPkgOperType proto.ServerMsgType, exeErr error) (clientP
 	return
 }
 
-func InstallMgmt(pnpClient proto.PnPService) {
+func InitPkgMgmt(pnpClient proto.PnPService, clientInfo proto.ClientInfo) {
 	cxt, cancel := context.WithTimeout(context.Background(), time.Minute*20)
 	defer cancel()
 	stream, err := pnpClient.GetPackages(cxt)
-	clientInfo := common.PopulateClientDetails()
 	clientMsgType := proto.ClientMsgType_PKG_ZTP_INIT
 
 	clientMsg := &proto.ClientPkgRequest{CommonClientInfo: &proto.CommonClientInfo{RequestHeader:
