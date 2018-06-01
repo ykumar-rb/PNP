@@ -234,12 +234,32 @@ func (e *InstallEnv) UpdateEnvironment (req *restful.Request, rsp *restful.Respo
 
 func (e *InstallEnv) serializeStruct() error {
 	pwd,_ := os.Getwd()
-	file, err := os.Create(pwd+"/../clientEnvMap.gob")
+	filePath := pwd+"/../clientEnvMap.gob"
+	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	savedEnv := &InstallEnv{}
+	savedEnv.deSerializeStruct(filePath)
+	for k,v := range savedEnv.ClientEnvMap {
+		if _, ok := e.ClientEnvMap[k]; ok {
+			continue
+		}
+		e.ClientEnvMap[k] = v
+	}
 	if err == nil {
 		encoder := gob.NewEncoder(file)
 		encoder.Encode(e)
 	}
-	log.Printf("Serial file name: %v", file.Name())
+	log.Printf("Serialized file name: %v", file.Name())
+	//log.Printf("Contents: %v", e)
+	file.Close()
+	return err
+}
+
+func (e *InstallEnv) deSerializeStruct(serializedFile string) error {
+	file, err := os.OpenFile(serializedFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	if err == nil {
+		decoder := gob.NewDecoder(file)
+		err = decoder.Decode(e)
+	}
 	file.Close()
 	return err
 }
