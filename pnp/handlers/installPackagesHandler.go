@@ -7,7 +7,8 @@ import (
 	"os"
 	"log"
 	"sync"
-	"encoding/gob"
+	"strconv"
+	"github.com/go-redis/redis"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/ZTP/pnp/util/server"
 	pb "github.com/ZTP/pnp/common/proto"
@@ -23,8 +24,9 @@ type ClientEnv struct {
 }
 
 type InstallEnv struct {
-	mux sync.Mutex
-	ClientEnvMap map[string]ClientEnv
+	mux            sync.Mutex
+	RedisClient *redis.Client
+	clientEnv ClientEnv
 }
 
 
@@ -33,7 +35,7 @@ func setPkgServerResponse (pkg server.Package,
 	serverMsgType proto.ServerMsgType, exeCmd []string){
 
 	switch clientMsgType {
-	case proto.ClientMsgType_PKG_INIT:
+	case proto.ClientMsgType_PKG_ZTP_INIT:
 		{
 			cmdType = proto.ServerCmdType_RUN
 			serverMsgType = proto.ServerMsgType_IS_PKG_INSTALLED
@@ -99,8 +101,7 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 		return err
 	}
 
-	pwd,_ := os.Getwd()
-	installEnv.deSerializeStruct(pwd+"/../clientEnvMap.gob")
+	installEnv.RedisClient = initializeClient()
 	clientIntructionFile := installEnv.fetchClientInstructionFileName(initialClientMsg.CommonClientInfo.ClientInfo.MACAddr)
 	log.Printf("Instruction file for client %v : %v ", initialClientMsg.CommonClientInfo.ClientInfo.MACAddr ,clientIntructionFile)
 	if err = server.GetConfigFromToml(clientIntructionFile, packageInfo); err != nil {
@@ -162,18 +163,30 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 }
 
 func (i *InstallEnv) fetchClientInstructionFileName (clientMac string) string {
-	if i.ClientEnvMap[clientMac].ClientConfigFile == ""{
-		color.Warnf("No instruction file found for the client : %v", clientMac)
+	clientEnvName := i.RedisClient.HGet(clientMac, "EnvName").Val()
+	color.Printf("ENV name from mac: %v:%v", clientMac,clientEnvName)
+	clientEnvAutoUpdate := i.RedisClient.HGet(clientMac, "AutoUpdate").Val()// string: true/false
+	instructionFileName,err := i.RedisClient.Get(clientEnvName).Result()
+	if err != nil {
+		color.Fatalf("Error while fetching Environment filename, Error : %v", err)
 	}
-	return i.ClientEnvMap[clientMac].ClientConfigFile
+	i.clientEnv.AutoUpdate,_ = strconv.ParseBool(clientEnvAutoUpdate)
+	if err != nil {
+		color.Fatalf("Error while converting string to boolean, Error : %v", err)
+	}
+	i.clientEnv.ClientConfigFile = instructionFileName
+	return instructionFileName
 }
 
-func (i *InstallEnv) deSerializeStruct(serializedFile string) error {
-	file, err := os.Open(serializedFile)
-	if err == nil {
-		decoder := gob.NewDecoder(file)
-		err = decoder.Decode(i)
+func initializeClient () (*redis.Client) {
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		color.Fatalf("Provide \"REDIS_ADDR\" environment variable")
 	}
-	file.Close()
-	return err
+	Client_EnvPath := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+	return Client_EnvPath
 }

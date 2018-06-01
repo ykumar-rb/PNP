@@ -3,6 +3,8 @@ This webservice is used to register PnP clients.
 
 Client details consists of `{MacId, OperationType}`
 
+RUN : `export REDIS_ADDR=172.16.128.147:9091`
+
 To run the webservice : `[go run onboarder.go --registry_address=<consul_registry_address> --server_name="ClientOnboardService" --server_address <consul_registry_address>:<some_port>]`
 
 ##### Sample Rest calls:

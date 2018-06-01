@@ -5,7 +5,8 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/ZTP/pnp/common/color"
 	"github.com/ZTP/onboarder/handlers"
-	"github.com/ZTP/onboarder/config"
+	"github.com/go-redis/redis"
+	"os"
 )
 var onboarderSvc = handlers.Onboarder{}
 
@@ -36,5 +37,15 @@ func main() {
 }
 
 func NewEnv () *handlers.InstallEnv {
-	return &handlers.InstallEnv{ClientEnvMap: make(map[string]config.ClientEnv)}
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		color.Fatalf("Provide \"REDIS_ADDR\" environment variable")
+	}
+	return &handlers.InstallEnv{
+		RedisClient: redis.NewClient(&redis.Options{
+			Addr:     redisAddr,
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		}),
+	}
 }

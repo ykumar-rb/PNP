@@ -5,12 +5,13 @@ import(
 	"sync"
 	"io/ioutil"
 	"github.com/emicklei/go-restful"
+	"github.com/go-redis/redis"
 	"encoding/json"
 	log "github.com/ZTP/pnp/common/color"
 	"net/http"
 	"errors"
-	"encoding/gob"
 	"github.com/ZTP/onboarder/config"
+	"github.com/ZTP/pnp/common/color"
 )
 
 const clientList = "RegisteredClientList.toml"
@@ -30,8 +31,8 @@ type ClientInfoList struct {
 }
 
 type InstallEnv struct {
-	mux          sync.Mutex
-	ClientEnvMap map[string]config.ClientEnv
+	RedisClient    *redis.Client
+	mux            sync.Mutex
 }
 
 func (o *Onboarder) GetAllRegisteredClients(req *restful.Request, rsp *restful.Response) {
@@ -203,7 +204,6 @@ func (o *Onboarder) initFile() {
 func (e *InstallEnv) CreateEnvironment (req *restful.Request, rsp *restful.Response) {
 	log.Printf("POST request : /pnp/environment")
 	newConfigEnv := &config.ConfigEnvironment{}
-	clientEnv := &config.ClientEnv{}
 	requestByt, err := ioutil.ReadAll(req.Request.Body)
 	if err != nil {
 		rsp.WriteError(http.StatusInternalServerError, err)
@@ -213,18 +213,18 @@ func (e *InstallEnv) CreateEnvironment (req *restful.Request, rsp *restful.Respo
 		rsp.WriteError(http.StatusInternalServerError, err)
 		log.Fatalf("", err)
 	}
-	e.mux.Lock()
-	clientEnv.ClientConfigFile = newConfigEnv.InstructionFileName
-	clientEnv.AutoUpdate = newConfigEnv.AutoUpdate
-	for i := 0; i < len(newConfigEnv.Mac); i++ {
-		e.ClientEnvMap[newConfigEnv.Mac[i]] = *clientEnv
-	}
-	err = e.serializeStruct()
+	err = e.StoreEnvPath(newConfigEnv)
 	if err != nil {
 		rsp.WriteError(http.StatusInternalServerError, err)
 		log.Fatalf("", err)
 	}
-	defer e.mux.Unlock()
+	err = e.StoreMacEnv(newConfigEnv)
+	if err != nil {
+		rsp.WriteError(http.StatusInternalServerError, err)
+		log.Fatalf("", err)
+	}
+
+	//defer e.mux.Unlock()
 	rsp.WriteHeader(http.StatusOK)
 }
 
@@ -232,34 +232,26 @@ func (e *InstallEnv) UpdateEnvironment (req *restful.Request, rsp *restful.Respo
 	e.CreateEnvironment(req, rsp)
 }
 
-func (e *InstallEnv) serializeStruct() error {
-	pwd,_ := os.Getwd()
-	filePath := pwd+"/../clientEnvMap.gob"
-	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
-	savedEnv := &InstallEnv{}
-	savedEnv.deSerializeStruct(filePath)
-	for k,v := range savedEnv.ClientEnvMap {
-		if _, ok := e.ClientEnvMap[k]; ok {
-			continue
-		}
-		e.ClientEnvMap[k] = v
+func (e *InstallEnv) StoreEnvPath(newEnv *config.ConfigEnvironment) error {
+	e.mux.Lock()
+	err := e.RedisClient.Set(newEnv.EnvironmentName, newEnv.InstructionFileName, 0).Err()
+	if err != nil {
+		return err
 	}
-	if err == nil {
-		encoder := gob.NewEncoder(file)
-		encoder.Encode(e)
-	}
-	log.Printf("Serialized file name: %v", file.Name())
-	//log.Printf("Contents: %v", e)
-	file.Close()
-	return err
+
+	ENV,_ := e.RedisClient.Get(newEnv.EnvironmentName).Result()
+	color.Printf("GETTING what is being set ENV: %v", ENV)
+
+	e.mux.Unlock()
+	return nil
 }
 
-func (e *InstallEnv) deSerializeStruct(serializedFile string) error {
-	file, err := os.OpenFile(serializedFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
-	if err == nil {
-		decoder := gob.NewDecoder(file)
-		err = decoder.Decode(e)
+func (e *InstallEnv) StoreMacEnv(newEnv *config.ConfigEnvironment) error {
+	e.mux.Lock()
+	for i := 0; i < len(newEnv.Mac); i++ {
+		e.RedisClient.HSet(newEnv.Mac[i],"EnvName",newEnv.EnvironmentName)
+		e.RedisClient.HSet(newEnv.Mac[i],"AutoUpdate",newEnv.AutoUpdate)
 	}
-	file.Close()
-	return err
+	e.mux.Unlock()
+	return nil
 }
