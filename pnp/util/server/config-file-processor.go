@@ -9,8 +9,6 @@ type Package struct {
 	Name string `toml:"name"`
 	Version string `toml:"version"`
 	CheckInstalledCmd []string `toml:"checkInstalledCmd"`
-	CheckInstalledVersion []string `toml:"checkInstalledVersion"`
-	UnInstallInstructions []string `toml:"unInstallInstructions"`
 	InstallFromFile string `toml:"installFromFile"`
 	InstallInstructions []string `toml:"installInstructions"`
 	UpdateRepo []string `toml:"updateRepo"`
