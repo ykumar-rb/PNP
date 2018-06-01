@@ -13,6 +13,10 @@ import (
 
 func setPkgMsgType(serverPkgOperType proto.ServerMsgType, exeErr error) (clientPkgMsgType proto.ClientMsgType) {
 	switch serverPkgOperType {
+	case proto.ServerMsgType_INITIALIZED_ENV_FOR_CLIENT:
+		{
+			clientPkgMsgType = proto.ClientMsgType_PKG_INIT
+		}
 	case proto.ServerMsgType_IS_PKG_INSTALLED:
 		{
 			if exeErr == nil {
@@ -32,7 +36,7 @@ func setPkgMsgType(serverPkgOperType proto.ServerMsgType, exeErr error) (clientP
 		}
 	case proto.ServerMsgType_GET_NEXT_PKG:
 		{
-			clientPkgMsgType = proto.ClientMsgType_PKG_ZTP_INIT
+			clientPkgMsgType = proto.ClientMsgType_PKG_INIT
 		}
 	}
 	return
@@ -66,10 +70,6 @@ func InitPkgMgmt(pnpClient proto.PnPService, clientInfo proto.ClientInfo) {
 		}
 
 		var exeErr error
-
-		if serverPkgResp.CommonServerResponse.GetServerCmdType() == proto.ServerCmdType_INFO {
-			continue
-		}
 
 		if serverPkgResp.CommonServerResponse.GetServerCmdType() == proto.ServerCmdType_RUN {
 			cmdStr := serverPkgResp.ServerInstructionPayload.Cmd

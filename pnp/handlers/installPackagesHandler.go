@@ -27,12 +27,13 @@ type InstallEnv struct {
 	ClientEnvMap map[string]ClientEnv
 }
 
+
 func setPkgServerResponse (pkg server.Package,
 	clientMsgType proto.ClientMsgType, numPkgsToInstall int) (cmdType proto.ServerCmdType,
 	serverMsgType proto.ServerMsgType, exeCmd []string){
 
 	switch clientMsgType {
-	case proto.ClientMsgType_PKG_ZTP_INIT:
+	case proto.ClientMsgType_PKG_INIT:
 		{
 			cmdType = proto.ServerCmdType_RUN
 			serverMsgType = proto.ServerMsgType_IS_PKG_INSTALLED
@@ -97,17 +98,21 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 		fmt.Printf("Error reading data from client, Error : %v", err)
 		return err
 	}
-	serverPkgResponse = &proto.ServerPkgResponse{CommonServerResponse: &proto.CommonServerResponse{ServerCmdType: proto.ServerCmdType_INFO}}
-	if err = stream.Send(serverPkgResponse); err != nil {
-		fmt.Printf("Error while sending response to client, Error: %v", err)
-		return err
-	}
+
 	pwd,_ := os.Getwd()
 	installEnv.deSerializeStruct(pwd+"/../clientEnvMap.gob")
 	clientIntructionFile := installEnv.fetchClientInstructionFileName(initialClientMsg.CommonClientInfo.ClientInfo.MACAddr)
 	log.Printf("Instruction file for client %v : %v ", initialClientMsg.CommonClientInfo.ClientInfo.MACAddr ,clientIntructionFile)
 	if err = server.GetConfigFromToml(clientIntructionFile, packageInfo); err != nil {
 		log.Fatalf("Unable to get client instruction data from JSON file, Error: %v", err)
+	}
+
+	serverPkgResponse = &proto.ServerPkgResponse{CommonServerResponse: &proto.CommonServerResponse{ServerCmdType:
+		proto.ServerCmdType_INFO}, ServerMsgType: proto.ServerMsgType_INITIALIZED_ENV_FOR_CLIENT}
+
+	if err = stream.Send(serverPkgResponse); err != nil {
+		fmt.Printf("Error while sending response to client, Error: %v", err)
+		return err
 	}
 
 	numPkgsToInstall := len(packageInfo.Packages)
