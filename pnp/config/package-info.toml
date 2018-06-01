@@ -12,7 +12,7 @@ updateRepo = [
   "apt-get -y update",
   "apt-get install -y apt-transport-https ca-certificates curl software-properties-common",
   "curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -",
-  "add-apt-repository 'deb [arch=amd64] https://download.docker.com/linux/debian jessie stable'",
+  "add-apt-repository \"deb [arch=amd64] https://download.docker.com/linux/debian jessie stable\"",
   "apt-get -y update"
 ]
 
@@ -24,7 +24,7 @@ checkInstalledCmd = [
 ]
 installFromFile = ""
 installInstructions = [
-  "kubePkgs='kubeadm kubectl kubelet'",
+  "kubePkgs=\"kubeadm kubectl kubelet\"",
   "echo $kubePkgs",
   "apt-get install -y $kubePkgs",
   "swapoff -a",
@@ -39,6 +39,6 @@ updateRepo = [
   "apt-get -y update",
   "apt-get -y install git curl apt-transport-https",
   "curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -",
-  "add-apt-repository 'deb http://apt.kubernetes.io/ kubernetes-xenial main'",
+  "add-apt-repository \"deb http://apt.kubernetes.io/ kubernetes-xenial main\"",
   "apt-get -y update"
 ]
