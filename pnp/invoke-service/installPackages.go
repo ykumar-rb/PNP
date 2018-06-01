@@ -59,7 +59,7 @@ func InitPkgMgmt(pnpClient proto.PnPService, clientInfo proto.ClientInfo) {
 		}
 
 		serverPkgResp, err = stream.Recv()
-		if err == io.EOF {
+		if err == io.EOF || serverPkgResp.CommonServerResponse.GetServerCmdType() == proto.ServerCmdType_CLOSE_CONN {
 			fmt.Println("\nClosing connection...")
 			stream.Close()
 			break

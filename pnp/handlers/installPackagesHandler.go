@@ -107,7 +107,10 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 		log.Fatalf("Unable to get client instruction data from JSON file, Error: %v", err)
 	}
 
-	serverPkgResponse = &proto.ServerPkgResponse{CommonServerResponse: &proto.CommonServerResponse{ServerCmdType:
+	serverPkgResponse = &proto.ServerPkgResponse{CommonServerResponse: &proto.CommonServerResponse{ResponseHeader:
+	&pb.ResponseHeader{Identifiers: &pb.Identifiers{TraceID: initialClientMsg.CommonClientInfo.RequestHeader.Identifiers.TraceID,
+		MessageID: initialClientMsg.CommonClientInfo.RequestHeader.Identifiers.MessageID}, ResponseTimestamp:
+	ptypes.TimestampNow()}, ServerCmdType:
 		proto.ServerCmdType_INFO}, ServerMsgType: proto.ServerMsgType_INITIALIZED_ENV_FOR_CLIENT}
 
 	if err = stream.Send(serverPkgResponse); err != nil {
@@ -128,7 +131,7 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 
 			if err != nil {
 				fmt.Printf("Error reading data from client, Error : %v", err)
-				break
+				goto label
 			}
 			cmdType, pkgOperType, exeCmd := setPkgServerResponse(pkg, clientPkgMsg.GetClientMsgType(), numPkgsToInstall)
 
@@ -141,19 +144,21 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 
 			if err = stream.Send(serverPkgResponse); err != nil {
 				fmt.Printf("Error while sending response to client, Error: %v", err)
-				break
+				goto label
+			}
+
+			if cmdType == proto.ServerCmdType_CLOSE_CONN {
+				goto label
 			}
 
 			if pkgOperType == proto.ServerMsgType_GET_NEXT_PKG {
 				break
 			}
 		}
-		if err != nil {
-			break
-		}
 	}
+	label:
 	stream.Close()
-	return nil
+	return err
 }
 
 func (i *InstallEnv) fetchClientInstructionFileName (clientMac string) string {
