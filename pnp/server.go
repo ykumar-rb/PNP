@@ -18,11 +18,6 @@ func main() {
 		micro.Name("PnPServer"),
 		micro.Flags(
 			cli.StringFlag{
-				Name : "package_file",
-				Value: "./config/packageInfo.json",
-				Usage: "Path of packageInfo.json file",
-			},
-			cli.StringFlag{
 				Name : "cert_file",
 				Value: "./certs/server.crt",
 				Usage: "Path of server certificate file",
@@ -39,7 +34,6 @@ func main() {
 
 	service.Init(
 		micro.Action(func(c *cli.Context) {
-			config.PackageFilePath = c.String("package_file")
 			config.CertFile = c.String("cert_file")
 			config.KeyFile = c.String("key_file")
 		}),
