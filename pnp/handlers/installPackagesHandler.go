@@ -21,6 +21,7 @@ type PnPService struct {}
 type ClientEnv struct {
 	ClientConfigFile string
 	AutoUpdate bool
+	EnvName string
 }
 
 type InstallEnv struct {
@@ -165,6 +166,7 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 
 func (i *InstallEnv) fetchClientInstructionFileName (clientMac string) string {
 	clientEnvName := i.RedisClient.HGet(clientMac, "EnvName").Val()
+	i.clientEnv.EnvName = clientEnvName
 	color.Printf("ENV name from mac: %v:%v", clientMac,clientEnvName)
 	clientEnvAutoUpdate := i.RedisClient.HGet(clientMac, "AutoUpdate").Val()// string: true/false
 	instructionFileName,err := i.RedisClient.Get(clientEnvName).Result()
