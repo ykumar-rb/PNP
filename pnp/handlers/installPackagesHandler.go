@@ -105,7 +105,7 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 	clientIntructionFile := installEnv.fetchClientInstructionFileName(initialClientMsg.CommonClientInfo.ClientInfo.MACAddr)
 	log.Printf("Instruction file for client %v : %v ", initialClientMsg.CommonClientInfo.ClientInfo.MACAddr ,clientIntructionFile)
 	if err = server.GetConfigFromToml(clientIntructionFile, packageInfo); err != nil {
-		log.Printf("Unable to get client instruction data from JSON file, Error: %v", err)
+		color.Warnf("Unable to get client instruction data from JSON file, Error: %v", err)
 		return
 	}
 
