@@ -213,6 +213,7 @@ func (e *InstallEnv) CreateEnvironment (req *restful.Request, rsp *restful.Respo
 		rsp.WriteError(http.StatusInternalServerError, err)
 		log.Fatalf("", err)
 	}
+	log.Printf("Request contents: %v", newConfigEnv)
 	err = e.StoreEnvPath(newConfigEnv)
 	if err != nil {
 		rsp.WriteError(http.StatusInternalServerError, err)
@@ -238,10 +239,6 @@ func (e *InstallEnv) StoreEnvPath(newEnv *config.ConfigEnvironment) error {
 	if err != nil {
 		return err
 	}
-
-	ENV,_ := e.RedisClient.Get(newEnv.EnvironmentName).Result()
-	color.Printf("GETTING what is being set ENV: %v", ENV)
-
 	e.mux.Unlock()
 	return nil
 }
