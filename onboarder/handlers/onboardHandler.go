@@ -11,7 +11,6 @@ import(
 	"net/http"
 	"errors"
 	"github.com/ZTP/onboarder/config"
-	"github.com/ZTP/pnp/common/color"
 )
 
 const clientList = "RegisteredClientList.toml"
