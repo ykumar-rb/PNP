@@ -35,7 +35,7 @@ func setPkgServerResponse (pkg server.Package,
 	serverMsgType proto.ServerMsgType, exeCmd []string){
 
 	switch clientMsgType {
-	case proto.ClientMsgType_PKG_ZTP_INIT:
+	case proto.ClientMsgType_PKG_INIT:
 		{
 			cmdType = proto.ServerCmdType_RUN
 			serverMsgType = proto.ServerMsgType_IS_PKG_INSTALLED
