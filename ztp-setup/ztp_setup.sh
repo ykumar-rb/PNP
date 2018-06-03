@@ -112,6 +112,25 @@ setupLoggingPath() {
     popd
 }
 
+setupZTPServerUI() {
+    echo "Setting up ZTP server UI"
+    echo "Fetching go libraries..."
+    go get "github.com/sirupsen/logrus"
+    go get "github.com/spf13/viper"
+    go get "github.com/tylerb/graceful"
+    go get "github.com/carbocation/interpose"
+    go get "github.com/gorilla/sessions"
+    go get "github.com/jmoiron/sqlx"
+    go get "golang.org/x/crypto/ssh/terminal"
+    go get "github.com/gorilla/mux"
+    cp -r ${curr_dir}/../../CloudInstall $PNP_USER_GOPATH/src/github.com
+    pushd $PNP_USER_GOPATH/src/github.com/CloudInstall
+    IP="$(ifconfig $SDP_NETWORK_INTERFACE | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')"
+    export ONBOARDER_API_ADDRESS=$IP:$onboarderRestApiPort
+    go run ninja.go >> $PNP_USER_GOPATH/src/github.com/ZTP/logs/serverUI.log 2>&1 &
+    popd
+}
+
 is_go_installed() {
   [ ! -z "$(which go)" ]
 }
@@ -205,4 +224,5 @@ setupZTP
 setupConsul
 setupClientOnboarder
 setupCertificateManager
+setupZTPServerUI
 setupPNPServer

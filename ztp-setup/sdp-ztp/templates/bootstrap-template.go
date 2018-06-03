@@ -9,6 +9,6 @@ cat resolv.conf > /etc/resolvconf/resolv.conf.d/base
 apt-get install -y curl
 chmod +x client
 export SDP_NETWORK_INTERFACE={{.Interface}}
-./client --registry_address="{{.IP}}" --pnp_server="NewPnPService" --certificate_manager="CertificateManagerService"
+./client --registry_address="{{.IP}}" --pnp_server="NewPnPService" --certificate_manager="CertificateManagerService" --pnp_interface="{{.Interface}}"
 
 `
