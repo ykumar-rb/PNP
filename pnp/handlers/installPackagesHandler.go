@@ -103,7 +103,10 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 	}
 
 	installEnv.RedisClient = initializeClient()
-	clientIntructionFile := installEnv.fetchClientInstructionFileName(initialClientMsg.CommonClientInfo.ClientInfo.MACAddr)
+	clientIntructionFile, err := installEnv.fetchClientInstructionFileName(initialClientMsg.CommonClientInfo.ClientInfo.MACAddr)
+	if err != nil {
+		return err
+	}
 	log.Printf("Instruction file for client %v : %v ", initialClientMsg.CommonClientInfo.ClientInfo.MACAddr ,clientIntructionFile)
 	if err = server.GetConfigFromToml(clientIntructionFile, packageInfo); err != nil {
 		color.Warnf("Unable to get client instruction data from JSON file, Error: %v", err)
@@ -164,21 +167,23 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 	return err
 }
 
-func (i *InstallEnv) fetchClientInstructionFileName (clientMac string) string {
+func (i *InstallEnv) fetchClientInstructionFileName (clientMac string) (string, error) {
 	clientEnvName := i.RedisClient.HGet(clientMac, "EnvName").Val()
 	i.clientEnv.EnvName = clientEnvName
 	color.Printf("ENV name from mac: %v:%v", clientMac,clientEnvName)
 	clientEnvAutoUpdate := i.RedisClient.HGet(clientMac, "AutoUpdate").Val()// string: true/false
 	instructionFileName,err := i.RedisClient.Get(clientEnvName).Result()
 	if err != nil {
-		color.Fatalf("Error while fetching Environment filename, Error : %v", err)
+		color.Warnf("Error while fetching Environment filename, Error : %v", err)
+		return "", err
 	}
 	i.clientEnv.AutoUpdate,_ = strconv.ParseBool(clientEnvAutoUpdate)
 	if err != nil {
-		color.Fatalf("Error while converting string to boolean, Error : %v", err)
+		color.Warnf("Error while converting string to boolean, Error : %v", err)
+		return "", err
 	}
 	i.clientEnv.ClientConfigFile = instructionFileName
-	return instructionFileName
+	return instructionFileName, nil
 }
 
 func initializeClient () (*redis.Client) {

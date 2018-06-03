@@ -2,7 +2,7 @@ package util
 
 import (
 	"fmt"
-	"github.com/RiverbedTechnology/sdp-ztp/ZTP/sdp-ztp/templates"
+	"github.com/ZTP/ztp-setup/sdp-ztp/templates"
 	"os"
 	"path/filepath"
 	"text/template"

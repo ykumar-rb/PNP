@@ -9,18 +9,20 @@ export PNP_USER_PROFILE="$PNP_USER_HOME/.profile"
 export PNP_USER_GOPATH="$PNP_USER_HOME/go"
 curr_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 onboarderRestApiPort=8099
+redisPort=9999
 
 setupPNPServer() {
     echo "Setting up PNP server ..."
     go get "github.com/BurntSushi/toml"
-    pushd $PNP_USER_GOPATH/src/github.com/RiverbedTechnology/sdp-ztp/pnp
+    pushd $PNP_USER_GOPATH/src/github.com/ZTP/pnp
     echo "Generating pnp-client binary..."
     CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o client client.go
     cp client /var/lib/matchbox/assets/coreos/client/    #Triggered from Preseed.cfg on client
     IP="$(ifconfig $SDP_NETWORK_INTERFACE | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')"
     echo "InterfaceName: $SDP_NETWORK_INTERFACE"
     echo "Starting PNP server..."
-    go run server.go --registry_address=$IP --server_name "NewPnPService"  --sdp_deploy_file "./config/sdp-install-config.toml" --package_file "/config/packageInfo.json" --cert_file "../certificate-manager/certs/server.crt" --key_file "../certificate-manager/certs/server.key"
+    export REDIS_ADDR=$IP:$redisPort
+    go run server.go --registry_address=$IP --server_name "NewPnPService"  --cert_file "../certificate-manager/certs/server.crt" --key_file "../certificate-manager/certs/server.key" >> $PNP_USER_GOPATH/src/github.com/ZTP/logs/pnpServer.log
     echo "PNP server setup done"
     popd
 }
@@ -56,21 +58,21 @@ setupCertificateManager() {
     go get "github.com/golang/protobuf/proto"
     go get "github.com/micro/go-micro"
     go get "github.com/micro/go-grpc"
-    pushd $PNP_USER_GOPATH/src/github.com/RiverbedTechnology/sdp-ztp/certificate-manager
+    pushd $PNP_USER_GOPATH/src/github.com/ZTP/certificate-manager
     echo "Generating certificates..."
     go run GenerateTLSCertificate.go $SDP_NETWORK_INTERFACE
     cp certs/server.crt /var/lib/matchbox/assets/coreos/client/
     echo "Starting the certificate-manager service..."
     IP="$(ifconfig $SDP_NETWORK_INTERFACE | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')"
-    go run server.go --registry_address=$IP --server_name="CertificateManagerService" --onboarder_service_name="ClientOnboardService" > /dev/null 2>&1 &
+    go run server.go --registry_address=$IP --server_name="CertificateManagerService" --onboarder_service_name="ClientOnboardService" >> $PNP_USER_GOPATH/src/github.com/ZTP/logs/certificateManager.log 2>&1 &
     popd
 }
 
 configure_ZTP_services() {
-    mkdir -p $PNP_USER_GOPATH/src/github.com/RiverbedTechnology
-    cp -r ${curr_dir}/../../sdp-ztp $PNP_USER_GOPATH/src/github.com/RiverbedTechnology
-    pushd $PNP_USER_GOPATH/src/github.com/RiverbedTechnology/sdp-ztp/ZTP/sdp-ztp
-    go run main.go
+    mkdir -p $PNP_USER_GOPATH/src/github.com
+    cp -r ${curr_dir}/../../ZTP $PNP_USER_GOPATH/src/github.com
+    pushd $PNP_USER_GOPATH/src/github.com/ZTP/ztp-setup/sdp-ztp
+    go run main.go >> $PNP_USER_GOPATH/src/github.com/ZTP/logs/ztp.log 2>&1 &
     popd
 }
 
@@ -81,7 +83,7 @@ setupConsul() {
     unzip consul_1.0.7_linux_amd64.zip
     rm consul_1.0.7_linux_amd64.zip
     IP="$(ifconfig $SDP_NETWORK_INTERFACE | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')"
-    ./consul agent -dev -bind=$IP -client $IP -ui -data-dir=/tmp/consul > /dev/null 2>&1 &
+    ./consul agent -dev -bind=$IP -client $IP -ui -data-dir=/tmp/consul >> $PNP_USER_GOPATH/src/github.com/ZTP/logs/consul.log 2>&1 &
     echo "Consul server running"
 }
 
@@ -90,9 +92,23 @@ setupClientOnboarder() {
     echo "Fetching go libraries"
     go get "github.com/micro/go-web"
     go get "github.com/emicklei/go-restful"
-    pushd $PNP_USER_GOPATH/src/github.com/RiverbedTechnology/sdp-ztp/onboarder
+    go get "github.com/dotcloud/go-redis-server"
+    go get "github.com/go-redis/redis"
+    pushd $PNP_USER_GOPATH/src/github.com/ZTP/onboarder
     IP="$(ifconfig $SDP_NETWORK_INTERFACE | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')"
-    go run onboarder.go --registry_address=$IP --server_name="ClientOnboardService" --server_address $IP:$onboarderRestApiPort > /dev/null 2>&1 &
+    echo "Starting Redis server"
+    export REDIS_ADDR=$IP:$redisPort
+    #BUG-FIX !! - Add "hvalues:  make(HashHash)," in github.com/dotcloud/go-redis-server/defaultHandler.go
+    go run redisServer.go  >> $PNP_USER_GOPATH/src/github.com/ZTP/logs/redisServer.log 2>&1 &
+    go run onboarder.go --registry_address=$IP --server_name="ClientOnboardService" --server_address $IP:$onboarderRestApiPort >> $PNP_USER_GOPATH/src/github.com/ZTP/logs/onboarder.log 2>&1 &
+    popd
+}
+
+setupLoggingPath() {
+    echo "Logging path being setup"
+    mkdir -p $PNP_USER_GOPATH/src/github.com/ZTP/logs
+    pushd $PNP_USER_GOPATH/src/github.com/ZTP/logs
+    touch ztp.log consul.log onboarder.log certificateManager.log pnpServer.log serverUI.log redisServer.log
     popd
 }
 
@@ -184,6 +200,7 @@ fi
 
 only_run_as_root
 setupGo
+setupLoggingPath
 setupZTP
 setupConsul
 setupClientOnboarder

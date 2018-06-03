@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 	"log"
-	"github.com/RiverbedTechnology/sdp-ztp/ZTP/sdp-ztp/util"
+	"github.com/ZTP/ztp-setup/sdp-ztp/util"
 	"os/exec"
 	"strings"
 )
