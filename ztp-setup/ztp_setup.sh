@@ -127,7 +127,7 @@ setupZTPServerUI() {
     pushd $PNP_USER_GOPATH/src/github.com/CloudInstall
     IP="$(ifconfig $SDP_NETWORK_INTERFACE | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')"
     export ONBOARDER_API_ADDRESS=$IP:$onboarderRestApiPort
-    go run ninja.go >> $PNP_USER_GOPATH/src/github.com/ZTP/logs/serverUI.log 2>&1 &
+    go run server_ui.go >> $PNP_USER_GOPATH/src/github.com/ZTP/logs/serverUI.log 2>&1 &
     popd
 }
 
