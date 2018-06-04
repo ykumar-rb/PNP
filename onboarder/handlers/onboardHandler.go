@@ -3,6 +3,7 @@ package handlers
 import(
 	"os"
 	"sync"
+	"fmt"
 	"io/ioutil"
 	"github.com/emicklei/go-restful"
 	"github.com/go-redis/redis"
@@ -10,7 +11,9 @@ import(
 	log "github.com/ZTP/pnp/common/color"
 	"net/http"
 	"errors"
+	"strconv"
 	"github.com/ZTP/onboarder/config"
+	"github.com/ZTP/onboarder/helper"
 )
 
 const clientList = "RegisteredClientList.toml"
@@ -228,6 +231,34 @@ func (e *InstallEnv) CreateEnvironment (req *restful.Request, rsp *restful.Respo
 	rsp.WriteHeader(http.StatusOK)
 }
 
+func RegisterClient (mac string) error {
+	httpClient := &http.Client{}
+	consulCatalogService := helper.ConsulCatalogService{}
+	err := consulCatalogService.GetServiceDetails()
+	if err != nil {
+		log.Warnf("Error", err)
+		return err
+	}
+	onboarderUrl := fmt.Sprintf("http://%s:%s/pnp/clients/?MacId=%s", consulCatalogService[0].ServiceAddress, strconv.Itoa(consulCatalogService[0].ServicePort), mac)
+	req, err := http.NewRequest("POST", onboarderUrl, nil)
+	if err != nil {
+		log.Warnf("Error", err)
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		log.Warnf("Error", err)
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 201 {
+		log.Warnf("Client \"%v\" could not be registered", mac)
+		return err
+	}
+	return nil
+}
+
 func (e *InstallEnv) UpdateEnvironment (req *restful.Request, rsp *restful.Response) {
 	e.CreateEnvironment(req, rsp)
 }
@@ -247,6 +278,10 @@ func (e *InstallEnv) StoreMacEnv(newEnv *config.ConfigEnvironment) error {
 	for i := 0; i < len(newEnv.Mac); i++ {
 		e.RedisClient.HSet(newEnv.Mac[i],"EnvName",newEnv.EnvironmentName)
 		e.RedisClient.HSet(newEnv.Mac[i],"AutoUpdate",newEnv.AutoUpdate)
+		err := RegisterClient(newEnv.Mac[i])
+		if err != nil {
+			return err
+		}
 	}
 	e.mux.Unlock()
 	return nil

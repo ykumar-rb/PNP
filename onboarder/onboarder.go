@@ -5,12 +5,14 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/ZTP/pnp/common/color"
 	"github.com/ZTP/onboarder/handlers"
+	"github.com/ZTP/onboarder/helper"
 	"github.com/go-redis/redis"
 	"os"
 )
 var onboarderSvc = handlers.Onboarder{}
 
 func main() {
+	helper.ConsulServiceName = "ClientOnboardService"
 	onboarderService := web.NewService(
 		web.Name("ClientOnboardService"),
 		web.Address(":8099"),
