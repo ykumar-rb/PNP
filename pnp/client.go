@@ -16,13 +16,23 @@ import (
 	proto "github.com/ZTP/pnp/pnp-proto"
 	certproto "github.com/ZTP/certificate-manager/proto/certificate"
 	invokeCertManager "github.com/ZTP/certificate-manager/invoke-service"
+	"github.com/ZTP/onboarder/publisher/pubsub-proto"
+	"github.com/micro/go-micro/metadata"
+	"github.com/ZTP/pnp/config"
+	"context"
+	"os"
+	"time"
 )
 
+//type Sub struct {}
+
+var pnpClient proto.PnPService
+var clientInfo proto.ClientInfo
+
 func main() {
-	var pnpServer string
-	var interfaceName string
 	var pnpCertificateService string
 	service := grpc.NewService(
+		micro.Name("PnPClient"),
 		micro.Flags(
 			cli.StringFlag{
 				Name : "pnp_server",
@@ -40,28 +50,30 @@ func main() {
 				Usage: "Certificate-manager server name registered to registry",
 			},
 		),
+		micro.RegisterTTL(time.Second*15),
+		micro.RegisterInterval(time.Second*5),
 	)
 	service.Init(
 		micro.Action(func(c *cli.Context) {
-			pnpServer = c.String("pnp_server")
-			interfaceName = c.String("pnp_interface")
+			config.PnpServerName = c.String("pnp_server")
+			config.ClientInterface = c.String("pnp_interface")
 
-			pnp_interf, err := net.InterfaceByName(interfaceName)
+			pnp_interf, err := net.InterfaceByName(config.ClientInterface)
 			if err != nil {
 				log.Fatalf("Unable to load interface specified, Error: %v", err)
 			}
 
 			if ! strings.Contains(pnp_interf.Flags.String(), "up") {
-				log.Fatalf("Specified network interface %v is DOWN, specify running network interface", interfaceName)
+				log.Fatalf("Specified network interface %v is DOWN, specify running network interface", config.ClientInterface)
 			}
 			pnpCertificateService = c.String("certificate_manager")
 		}),
 	)
-	pnpClient := proto.PnPServiceClient(pnpServer, service.Client())
+	pnpClient = proto.PnPServiceClient(config.PnpServerName, service.Client())
 	pnpCertClient := certproto.CertificateServiceClient(pnpCertificateService, service.Client())
-	clientInfo := client.PopulateClientDetails(interfaceName)
+	clientInfo = client.PopulateClientDetails(config.ClientInterface)
 
-	caCert := invokeCertManager.GetCertificate(pnpCertClient, clientInfo)
+	caCert, clientEnvName := invokeCertManager.GetCertificate(pnpCertClient, clientInfo)
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(caCert)
 	tlsConfig := &tls.Config{
@@ -74,5 +86,21 @@ func main() {
 	)
 
 	color.Println("Initializing package management...")
+
 	invoke.InitPkgMgmt(pnpClient, clientInfo)
+
+	if err := micro.RegisterSubscriber(clientEnvName, service.Server(), initiateClientUpdate); err != nil {
+		color.Warnf("Unable to subscribe topic %v", clientEnvName)
+		os.Exit(1)
+	}
+	if err := service.Run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func initiateClientUpdate(cxt context.Context, event *publisher.Event) error {
+	md, _ := metadata.FromContext(cxt)
+	color.Printf("[PubSub] Received update event %v with metatdata %v\n.. Initiating package update", event, md)
+	invoke.InitPkgMgmt(pnpClient, clientInfo)
+	return nil
 }

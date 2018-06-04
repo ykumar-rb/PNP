@@ -14,6 +14,7 @@ import (
 	pb "github.com/ZTP/pnp/common/proto"
 	proto "github.com/ZTP/pnp/pnp-proto"
 	"github.com/ZTP/pnp/common/color"
+	"strings"
 )
 
 type PnPService struct {}
@@ -30,59 +31,140 @@ type InstallEnv struct {
 	clientEnv ClientEnv
 }
 
+var isPkgUpgrade bool
+
+func getNextPackage(numPkgsToInstall int) (cmdType proto.ServerCmdType,
+	serverMsgType proto.ServerMsgType) {
+
+	if numPkgsToInstall == 0 {
+		fmt.Println("\nDone with all pkgs\n")
+		cmdType = proto.ServerCmdType_CLOSE_CONN
+	} else {
+		cmdType = proto.ServerCmdType_INFO
+		serverMsgType = proto.ServerMsgType_GET_NEXT_PKG
+	}
+	return
+}
 
 func setPkgServerResponse (pkg server.Package,
-	clientMsgType proto.ClientMsgType, numPkgsToInstall int) (cmdType proto.ServerCmdType,
+	clientMsgType proto.ClientMsgType, numPkgsToInstall int, autoUpdate bool) (cmdType proto.ServerCmdType,
 	serverMsgType proto.ServerMsgType, exeCmd []string){
 
 	switch clientMsgType {
-	case proto.ClientMsgType_PKG_INIT:
+	case proto.ClientMsgType_PKG_ENV_INIT:
+		{
+			cmdType = proto.ServerCmdType_RUN
+			serverMsgType = proto.ServerMsgType_INITIALIZE_ENV
+			exeCmd = pkg.ExportEnv
+		}
+	case proto.ClientMsgType_PKG_ENV_INITIALIZE_FAILED:
+		{
+			fmt.Printf("ENV initialize failed..")
+			cmdType = proto.ServerCmdType_CLOSE_CONN
+		}
+	case proto.ClientMsgType_PKG_ENV_INITIALIZED:
 		{
 			cmdType = proto.ServerCmdType_RUN
 			serverMsgType = proto.ServerMsgType_IS_PKG_INSTALLED
 			exeCmd = pkg.CheckInstalledCmd
 		}
-	case proto.ClientMsgType_PKG_NOT_INSTALLED:
-		{
-			cmdType = proto.ServerCmdType_RUN
-			if pkg.InstallFromFile != "" {
-				serverMsgType = proto.ServerMsgType_INSTALL_PKG_FROM_FILE
-
-			} else {
-				if pkg.UpdateRepo != nil {
-					exeCmd = pkg.UpdateRepo
-				}
-				serverMsgType = proto.ServerMsgType_INSTALL_PKG
-				for _, cmd := range pkg.InstallInstructions {
-					exeCmd = append(exeCmd, cmd)
-				}
-			}
-		}
 	case proto.ClientMsgType_PKG_INSTALLED:
 		{
-			fmt.Printf("Package %v already installed\n", pkg.Name)
-			if numPkgsToInstall == 0 {
-				cmdType = proto.ServerCmdType_CLOSE_CONN
+			fmt.Printf("Package %v installed.. Checking if it is latest version\n", pkg.Name)
+			cmdType = proto.ServerCmdType_RUN
+			serverMsgType = proto.ServerMsgType_IS_PKG_OUTDATED
+			exeCmd = pkg.IsPackageOutdated
+		}
+	case proto.ClientMsgType_PKG_VERSION_OUTDATED:
+		{
+			isPkgUpgrade = true
+			fmt.Printf("Package %v installed is outdated..\n", pkg.Name)
+
+			if autoUpdate {
+				cmdType = proto.ServerCmdType_RUN
+				exeCmd = pkg.UninstallPackage
 			} else {
-				cmdType = proto.ServerCmdType_INFO
-				serverMsgType = proto.ServerMsgType_GET_NEXT_PKG
+				cmdType = proto.ServerCmdType_MANUAL_UPDATE
+
+				uninstStr := strings.Join(pkg.UninstallPackage, ",")
+				instStr := strings.Join(pkg.InstallInstructions, ",")
+				rollBckStr := strings.Join(pkg.RollbackPackage, ",")
+
+				combStr := uninstStr + "#" + instStr + "#" + rollBckStr
+				exeCmd[0] = combStr
 			}
+			serverMsgType = proto.ServerMsgType_UNINSTALL_PKG
+		}
+	case proto.ClientMsgType_PKG_UNINSTALL_FAILED:
+		{
+			fmt.Printf("Uninstallation of package %v failed\n", pkg.Name)
+			cmdType = proto.ServerCmdType_CLOSE_CONN
+		}
+	case proto.ClientMsgType_PKG_UNINSTALL_SUCCESS:
+		{
+			fmt.Printf("Uninstall package %v success\n", pkg.Name)
+			cmdType = proto.ServerCmdType_RUN
+
+			if pkg.UpdateRepo != nil {
+				exeCmd = pkg.UpdateRepo
+			}
+
+			for _, cmd := range pkg.InstallInstructions {
+				exeCmd = append(exeCmd, cmd)
+			}
+			serverMsgType = proto.ServerMsgType_INSTALL_PKG
+		}
+	case proto.ClientMsgType_PKG_NOT_INSTALLED:
+		{
+			if autoUpdate {
+				cmdType = proto.ServerCmdType_RUN
+			} else {
+				cmdType = proto.ServerCmdType_MANUAL_UPDATE
+			}
+
+			if pkg.UpdateRepo != nil {
+				exeCmd = pkg.UpdateRepo
+			}
+
+			for _, cmd := range pkg.InstallInstructions {
+				exeCmd = append(exeCmd, cmd)
+			}
+			serverMsgType = proto.ServerMsgType_INSTALL_PKG
+		}
+	case proto.ClientMsgType_PKG_VERSION_LATEST:
+		{
+			fmt.Printf("Package %v is latest..", pkg.Name)
+			cmdType, serverMsgType = getNextPackage(numPkgsToInstall)
 		}
 	case proto.ClientMsgType_PKG_INSTALL_SUCCESS:
 		{
 			fmt.Printf("Package %v installed\n", pkg.Name)
-			if numPkgsToInstall == 0 {
-				fmt.Println("\nDone with all pkgs\n")
-				cmdType = proto.ServerCmdType_CLOSE_CONN
-			} else {
-				cmdType = proto.ServerCmdType_INFO
-				serverMsgType = proto.ServerMsgType_GET_NEXT_PKG
-			}
+			cmdType, serverMsgType = getNextPackage(numPkgsToInstall)
 		}
 	case proto.ClientMsgType_PKG_INSTALL_FAILED:
 		{
-			fmt.Printf("Installation of package %v failed\n", pkg.Name)
+			if isPkgUpgrade {
+				cmdType = proto.ServerCmdType_RUN
+				serverMsgType = proto.ServerMsgType_ROLLBACK_PKG
+				exeCmd = pkg.RollbackPackage
+			} else {
+				fmt.Printf("Installation of package %v failed\n", pkg.Name)
+				cmdType = proto.ServerCmdType_CLOSE_CONN
+			}
+		}
+	case proto.ClientMsgType_PKG_ROLLBACK_SUCCESS:
+		{
+			fmt.Printf("Package %v rollback success\n", pkg.Name)
+			cmdType, serverMsgType = getNextPackage(numPkgsToInstall)
+		}
+	case proto.ClientMsgType_PKG_ROLLBACK_FAILED:
+		{
+			fmt.Printf("Package %v rollback failed\n", pkg.Name)
 			cmdType = proto.ServerCmdType_CLOSE_CONN
+		}
+	case proto.ClientMsgType_GET_NEXT:
+		{
+			serverMsgType = proto.ServerMsgType_GET_NEXT_PKG
 		}
 	}
 	return
@@ -117,7 +199,7 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 	&pb.ResponseHeader{Identifiers: &pb.Identifiers{TraceID: initialClientMsg.CommonClientInfo.RequestHeader.Identifiers.TraceID,
 		MessageID: initialClientMsg.CommonClientInfo.RequestHeader.Identifiers.MessageID}, ResponseTimestamp:
 	ptypes.TimestampNow()}, ServerCmdType:
-		proto.ServerCmdType_INFO}, ServerMsgType: proto.ServerMsgType_INITIALIZED_ENV_FOR_CLIENT}
+		proto.ServerCmdType_INFO}, ServerMsgType: proto.ServerMsgType_CLIENT_AUTHENTICATED}
 
 	if err = stream.Send(serverPkgResponse); err != nil {
 		fmt.Printf("Error while sending response to client, Error: %v", err)
@@ -128,7 +210,7 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 
 	for _, pkg := range packageInfo.Packages {
 		numPkgsToInstall = numPkgsToInstall - 1
-
+		isPkgUpgrade = false
 		for {
 			clientPkgMsg, err := stream.Recv()
 			if err == io.EOF {
@@ -139,14 +221,17 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 				fmt.Printf("Error reading data from client, Error : %v", err)
 				goto label
 			}
-			cmdType, pkgOperType, exeCmd := setPkgServerResponse(pkg, clientPkgMsg.GetClientMsgType(), numPkgsToInstall)
+			cmdType, pkgOperType, exeCmd := setPkgServerResponse(pkg, clientPkgMsg.GetClientMsgType(), numPkgsToInstall,
+				installEnv.clientEnv.AutoUpdate)
 
 			serverPkgResponse = &proto.ServerPkgResponse{CommonServerResponse: &proto.CommonServerResponse{ResponseHeader:
-			&pb.ResponseHeader{Identifiers: &pb.Identifiers{TraceID: clientPkgMsg.CommonClientInfo.RequestHeader.Identifiers.TraceID,
-				MessageID: clientPkgMsg.CommonClientInfo.RequestHeader.Identifiers.MessageID}, ResponseTimestamp:
-			ptypes.TimestampNow()}, ServerCmdType: cmdType}, ServerInstructionPayload:
-			&proto.ServerInstructionPayload{exeCmd},
-				ServerMsgType: pkgOperType}
+				&pb.ResponseHeader{Identifiers: &pb.Identifiers{TraceID:
+					clientPkgMsg.CommonClientInfo.RequestHeader.Identifiers.TraceID, MessageID:
+						clientPkgMsg.CommonClientInfo.RequestHeader.Identifiers.MessageID}, ResponseTimestamp:
+							ptypes.TimestampNow()}, ServerCmdType: cmdType}, ServerInstructionPayload:
+								&proto.ServerInstructionPayload{exeCmd}, ServerMsgType: pkgOperType,
+									PackageDetails: &proto.PackageDetails{PackageName: pkg.Name, PackageVersion: pkg.Version,
+									AutoUpdate: installEnv.clientEnv.AutoUpdate}}
 
 			if err = stream.Send(serverPkgResponse); err != nil {
 				fmt.Printf("Error while sending response to client, Error: %v", err)

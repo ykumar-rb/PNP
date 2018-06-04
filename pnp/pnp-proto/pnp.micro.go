@@ -13,6 +13,7 @@ It has these top-level messages:
 	ClientPkgRequest
 	CommonServerResponse
 	ServerInstructionPayload
+	PackageDetails
 	ServerPkgResponse
 */
 package pnp

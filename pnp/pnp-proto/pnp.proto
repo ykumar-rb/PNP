@@ -9,33 +9,40 @@ service PnP {
 }
 
 enum ClientMsgType {
-    PKG_ZTP_INIT = 0;
-    PKG_INIT = 1;
-    PKG_NOT_INSTALLED = 2;
-    PKG_INSTALLED = 3;
-    PKG_VERSION_CHANGED = 4;
-    PKG_VERSION_NO_CHANGE = 5;
-    PKG_UNINSTALL_SUCCESS = 6;
-    PKG_UNINSTALL_FAILED = 7;
-    PKG_INSTALL_SUCCESS = 8;
-    PKG_INSTALL_FAILED = 9;
+    AUTHENTICATE_CLIENT = 0;
+    PKG_ENV_INIT = 1;
+    PKG_ENV_INITIALIZED = 2;
+    PKG_ENV_INITIALIZE_FAILED = 3;
+    PKG_NOT_INSTALLED = 4;
+    PKG_INSTALLED = 5;
+    PKG_VERSION_OUTDATED = 6;
+    PKG_VERSION_LATEST = 7;
+    PKG_UNINSTALL_SUCCESS = 8;
+    PKG_UNINSTALL_FAILED = 9;
+    PKG_INSTALL_SUCCESS = 10;
+    PKG_INSTALL_FAILED = 11;
+    PKG_ROLLBACK_SUCCESS = 12;
+    PKG_ROLLBACK_FAILED = 13;
+    GET_NEXT = 14;
 }
 
 enum ServerMsgType {
-    INITIALIZED_ENV_FOR_CLIENT = 0;
-    IS_PKG_INSTALLED = 1;
-    INSTALL_PKG = 2;
-    INSTALL_PKG_FROM_FILE = 3;
-    IS_PKG_OUTDATED = 4;
-    UNINSTALL_PKG = 5;
-    GET_NEXT_PKG = 6;
+    CLIENT_AUTHENTICATED = 0;
+    INITIALIZE_ENV = 1;
+    IS_PKG_INSTALLED = 2;
+    INSTALL_PKG = 3;
+    INSTALL_PKG_FROM_FILE = 4;
+    IS_PKG_OUTDATED = 5;
+    UNINSTALL_PKG = 6;
+    ROLLBACK_PKG = 7;
+    GET_NEXT_PKG = 8;
 }
 
 enum ServerCmdType {
     RUN = 0;
-    CONFIG = 1; // Todo
-    INFO = 2;
-    CLOSE_CONN = 3;
+    INFO = 1;
+    CLOSE_CONN = 2;
+    MANUAL_UPDATE = 3;
 }
 
 message ClientInfo {
@@ -64,10 +71,17 @@ message ServerInstructionPayload {
     repeated string cmd = 1;
 }
 
+message PackageDetails {
+    string packageName = 1;
+    string packageVersion = 2;
+    bool autoUpdate = 3;
+}
+
 message ServerPkgResponse {
     CommonServerResponse commonServerResponse = 1;
     ServerMsgType serverMsgType = 2;
     ServerInstructionPayload serverInstructionPayload = 3;
+    PackageDetails packageDetails = 4;
 }
 
 

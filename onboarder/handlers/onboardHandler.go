@@ -5,6 +5,7 @@ import(
 	"sync"
 	"fmt"
 	"io/ioutil"
+	"crypto/md5"
 	"github.com/emicklei/go-restful"
 	"github.com/go-redis/redis"
 	"encoding/json"
@@ -14,6 +15,7 @@ import(
 	"strconv"
 	"github.com/ZTP/onboarder/config"
 	"github.com/ZTP/onboarder/helper"
+	"github.com/ZTP/onboarder/publisher"
 )
 
 const clientList = "RegisteredClientList.toml"
@@ -215,12 +217,35 @@ func (e *InstallEnv) CreateEnvironment (req *restful.Request, rsp *restful.Respo
 		rsp.WriteError(http.StatusInternalServerError, err)
 		log.Fatalf("", err)
 	}
+
+	instructFileBytes, err := ioutil.ReadFile(newConfigEnv.InstructionFileName)
+	if err != nil {
+		log.Fatalf("Unable to read env config file")
+	}
+
+	hashString:= md5.Sum(instructFileBytes)
+	newEnvFileHash := string(hashString[:])
+
 	log.Printf("Request contents: %v", newConfigEnv)
+
 	err = e.StoreEnvPath(newConfigEnv)
 	if err != nil {
 		rsp.WriteError(http.StatusInternalServerError, err)
 		log.Fatalf("", err)
 	}
+
+	oldEnvFileHash := e.RedisClient.Get(newConfigEnv.InstructionFileName).Val()
+
+	if oldEnvFileHash != "" && newEnvFileHash != oldEnvFileHash {
+		publisher.PublishOnUpdate(newConfigEnv.EnvironmentName)
+	}
+
+	err = e.StoreEnvFileHash(newConfigEnv, newEnvFileHash)
+	if err != nil {
+		rsp.WriteError(http.StatusInternalServerError, err)
+		log.Fatalf("", err)
+	}
+
 	err = e.StoreMacEnv(newConfigEnv)
 	if err != nil {
 		rsp.WriteError(http.StatusInternalServerError, err)
@@ -266,6 +291,16 @@ func (e *InstallEnv) UpdateEnvironment (req *restful.Request, rsp *restful.Respo
 func (e *InstallEnv) StoreEnvPath(newEnv *config.ConfigEnvironment) error {
 	e.mux.Lock()
 	err := e.RedisClient.Set(newEnv.EnvironmentName, newEnv.InstructionFileName, 0).Err()
+	if err != nil {
+		return err
+	}
+	e.mux.Unlock()
+	return nil
+}
+
+func (e *InstallEnv) StoreEnvFileHash(newEnv *config.ConfigEnvironment, envFileHash string) error {
+	e.mux.Lock()
+	err := e.RedisClient.Set(newEnv.InstructionFileName, envFileHash, 0).Err()
 	if err != nil {
 		return err
 	}

@@ -8,14 +8,52 @@ import (
 	"github.com/ZTP/pnp/common"
 	"golang.org/x/net/context"
 	"github.com/ZTP/pnp/executor"
+	"github.com/go-redis/redis"
 	proto "github.com/ZTP/pnp/pnp-proto"
+	"strings"
 )
 
-func setPkgMsgType(serverPkgOperType proto.ServerMsgType, exeErr error) (clientPkgMsgType proto.ClientMsgType) {
-	switch serverPkgOperType {
-	case proto.ServerMsgType_INITIALIZED_ENV_FOR_CLIENT:
+type SoftwareDB struct {
+	Name string
+	Version string
+	AvailVersion string
+	Action string
+	Status string
+	Install string
+	UnInstall string
+	Rollback string
+}
+
+var DBClient = redis.NewClient(&redis.Options{
+	Addr: "localhost:6389",
+	Password: "", // no password set
+	DB:       0,  // use default DB
+})
+
+func SetDataInDB(client *redis.Client, SDB *SoftwareDB) {
+	client.HSet(SDB.Name, "Name", SDB.Name)
+	client.HSet(SDB.Name, "Version", SDB.Version)
+	client.HSet(SDB.Name, "AvailVersion", SDB.AvailVersion)
+	client.HSet(SDB.Name, "Action", SDB.Action)
+	client.HSet(SDB.Name, "Status", SDB.Status)
+	client.HSet(SDB.Name, "Install", SDB.Install)
+	client.HSet(SDB.Name, "UnInstall", SDB.UnInstall)
+	client.HSet(SDB.Name, "Rollback", SDB.Rollback)
+}
+
+func setPkgMsgType(serverPkgResp proto.ServerPkgResponse, exeErr error) (clientPkgMsgType proto.ClientMsgType) {
+	switch serverPkgResp.GetServerMsgType() {
+	case proto.ServerMsgType_CLIENT_AUTHENTICATED:
 		{
-			clientPkgMsgType = proto.ClientMsgType_PKG_INIT
+			clientPkgMsgType = proto.ClientMsgType_PKG_ENV_INIT
+		}
+	case proto.ServerMsgType_INITIALIZE_ENV:
+		{
+			if exeErr == nil {
+				clientPkgMsgType = proto.ClientMsgType_PKG_ENV_INITIALIZED
+			} else {
+				clientPkgMsgType = proto.ClientMsgType_PKG_ENV_INITIALIZE_FAILED
+			}
 		}
 	case proto.ServerMsgType_IS_PKG_INSTALLED:
 		{
@@ -25,18 +63,79 @@ func setPkgMsgType(serverPkgOperType proto.ServerMsgType, exeErr error) (clientP
 				clientPkgMsgType = proto.ClientMsgType_PKG_NOT_INSTALLED
 			}
 		}
-	case proto.ServerMsgType_INSTALL_PKG, proto.ServerMsgType_INSTALL_PKG_FROM_FILE:
+	case proto.ServerMsgType_IS_PKG_OUTDATED:
 		{
 			if exeErr == nil {
-				clientPkgMsgType = proto.ClientMsgType_PKG_INSTALL_SUCCESS
+				clientPkgMsgType = proto.ClientMsgType_PKG_VERSION_LATEST
 			} else {
-				clientPkgMsgType = proto.ClientMsgType_PKG_INSTALL_FAILED
-				fmt.Printf("\nFailed to install package\n")
+				clientPkgMsgType = proto.ClientMsgType_PKG_VERSION_OUTDATED
+			}
+		}
+	case proto.ServerMsgType_UNINSTALL_PKG:
+		{
+			if serverPkgResp.CommonServerResponse.ServerCmdType != proto.ServerCmdType_MANUAL_UPDATE {
+				if exeErr == nil {
+					clientPkgMsgType = proto.ClientMsgType_PKG_UNINSTALL_SUCCESS
+				} else {
+					clientPkgMsgType = proto.ClientMsgType_PKG_UNINSTALL_FAILED
+					SetDataInDB(DBClient, &SoftwareDB{Name: serverPkgResp.PackageDetails.PackageName, Version:
+					serverPkgResp.PackageDetails.PackageVersion, AvailVersion: serverPkgResp.PackageDetails.PackageVersion,
+						Action: "NOACTION", Status:"Uninstall while upgrade Failed", Install: "-", UnInstall: "-", Rollback: "-"})
+				}
+			} else {
+				commandArray := strings.Split(serverPkgResp.ServerInstructionPayload.Cmd[0], "#")
+				version := DBClient.HGet(serverPkgResp.PackageDetails.PackageName, "Version").Val()
+				SetDataInDB(DBClient, &SoftwareDB{Name: serverPkgResp.PackageDetails.PackageName, Version:
+				version, AvailVersion: serverPkgResp.PackageDetails.PackageVersion, Action: "UPGRADE", Status: "-",
+				Install: commandArray[1], UnInstall:
+						commandArray[0], Rollback: commandArray[2]})
+
+				clientPkgMsgType = proto.ClientMsgType_GET_NEXT
+			}
+		}
+	case proto.ServerMsgType_INSTALL_PKG:
+		{
+			if serverPkgResp.CommonServerResponse.ServerCmdType != proto.ServerCmdType_MANUAL_UPDATE {
+				if exeErr == nil {
+					clientPkgMsgType = proto.ClientMsgType_PKG_INSTALL_SUCCESS
+					SetDataInDB(DBClient, &SoftwareDB{Name: serverPkgResp.PackageDetails.PackageName, Version:
+					serverPkgResp.PackageDetails.PackageVersion, AvailVersion: serverPkgResp.PackageDetails.PackageVersion,
+						Action: "NOACTION", Status:"Install package Success", Install: "-", UnInstall: "-", Rollback: "-"})
+				} else {
+					clientPkgMsgType = proto.ClientMsgType_PKG_INSTALL_FAILED
+					SetDataInDB(DBClient, &SoftwareDB{Name: serverPkgResp.PackageDetails.PackageName, Version:
+					serverPkgResp.PackageDetails.PackageVersion, AvailVersion: serverPkgResp.PackageDetails.PackageVersion,
+						Action: "NOACTION", Status:"Install Package Failed", Install: "-", UnInstall: "-", Rollback: "-"})
+					fmt.Printf("\nFailed to install package\n")
+				}
+			} else {
+				clientPkgMsgType = proto.ClientMsgType_GET_NEXT
+				commandArray := strings.Join(serverPkgResp.ServerInstructionPayload.Cmd, ",")
+				SetDataInDB(DBClient, &SoftwareDB{Name: serverPkgResp.PackageDetails.PackageName, Version:
+				serverPkgResp.PackageDetails.PackageVersion, AvailVersion: serverPkgResp.PackageDetails.PackageVersion,
+					Action: "INSTALL", Status:"-", Install: commandArray, UnInstall: "-", Rollback: "-"})
+			}
+
+		}
+	case proto.ServerMsgType_ROLLBACK_PKG:
+		{
+			if exeErr == nil {
+				clientPkgMsgType = proto.ClientMsgType_PKG_ROLLBACK_SUCCESS
+				version := DBClient.HGet(serverPkgResp.PackageDetails.PackageName, "Version").Val()
+				SetDataInDB(DBClient, &SoftwareDB{Name: serverPkgResp.PackageDetails.PackageName, Version:
+				version, AvailVersion: "-", Action: "NOACTION", Status:"Rollback Success", Install: "-",
+				UnInstall: "-", Rollback: "-"})
+			} else {
+				clientPkgMsgType = proto.ClientMsgType_PKG_ROLLBACK_FAILED
+				version := DBClient.HGet(serverPkgResp.PackageDetails.PackageName, "Version").Val()
+				SetDataInDB(DBClient, &SoftwareDB{Name: serverPkgResp.PackageDetails.PackageName, Version:
+				version, AvailVersion: "-", Action: "NOACTION", Status:"Rollback Failed", Install: "-",
+					UnInstall: "-", Rollback: "-"})
 			}
 		}
 	case proto.ServerMsgType_GET_NEXT_PKG:
 		{
-			clientPkgMsgType = proto.ClientMsgType_PKG_INIT
+			clientPkgMsgType = proto.ClientMsgType_PKG_ENV_INIT
 		}
 	}
 	return
@@ -46,7 +145,8 @@ func InitPkgMgmt(pnpClient proto.PnPService, clientInfo proto.ClientInfo) {
 	cxt, cancel := context.WithTimeout(context.Background(), time.Minute*20)
 	defer cancel()
 	stream, err := pnpClient.GetPackages(cxt)
-	clientMsgType := proto.ClientMsgType_PKG_ZTP_INIT
+	clientMsgType := proto.ClientMsgType_AUTHENTICATE_CLIENT
+	var cmdStr []string
 
 	clientMsg := &proto.ClientPkgRequest{CommonClientInfo: &proto.CommonClientInfo{RequestHeader:
 	common.NewReqHdrGenerateTraceAndMessageID(), ClientInfo: &clientInfo},
@@ -72,11 +172,13 @@ func InitPkgMgmt(pnpClient proto.PnPService, clientInfo proto.ClientInfo) {
 		var exeErr error
 
 		if serverPkgResp.CommonServerResponse.GetServerCmdType() == proto.ServerCmdType_RUN {
-			cmdStr := serverPkgResp.ServerInstructionPayload.Cmd
-			exeErr = executor.ExecuteServerInstructions(cmdStr)
+			cmdStr = serverPkgResp.ServerInstructionPayload.Cmd
+			if serverPkgResp.PackageDetails.AutoUpdate {
+				exeErr = executor.ExecuteServerInstructions(cmdStr)
+			}
 		}
 
-		clientMsgType = setPkgMsgType(serverPkgResp.GetServerMsgType(), exeErr)
+		clientMsgType = setPkgMsgType(*serverPkgResp, exeErr)
 
 		traceId := serverPkgResp.CommonServerResponse.ResponseHeader.Identifiers.TraceID
 

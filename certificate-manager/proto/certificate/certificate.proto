@@ -15,5 +15,6 @@ message ClientInfo {
 message ServerCertificate {
     pnp.CommonServerResponse commonServerResponse = 1;
     bytes serverCert = 2;
-    string responseMessage = 3;
+    string clientEnvName = 3;
+    string responseMessage = 4;
 }

@@ -34,3 +34,4 @@ func GetMACForInterfaceName(ifname string) (string) {
 	}
 	return ""
 }
+

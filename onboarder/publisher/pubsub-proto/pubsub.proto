@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package publisher;
+
+// Example message
+message Event {
+    // unique id
+    string id = 1;
+    // unix timestamp
+    int64 timestamp = 2;
+}

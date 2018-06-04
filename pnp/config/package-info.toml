@@ -1,12 +1,36 @@
 [[packages]]
-name = "docker-ce"
-version = "17.03.2~ce-0~ubuntu-xenial"
+name = "docker"
+version = "18.03.1~ce-0~debian"
+exportEnv = [
+  "touch /tmp/pnp-docker-env.sh",
+  "echo export name=\"docker-ce\" >> /tmp/pnp-docker-env.sh",
+  "echo export oldVersion=\"\" >> /tmp/pnp-docker-env.sh",
+  "echo export LatestVersion=\"18.03.1~ce-0~debian\" >> /tmp/pnp-docker-env.sh"
+]
 checkInstalledCmd = [
   "which docker"
 ]
 installFromFile = ""
 installInstructions = [
-  "apt-get install -y docker-ce"
+  "source /tmp/pnp-docker-env.sh",
+  "apt-get install -y $name=$LatestVersion"
+]
+isPackageOutdated = [
+  "source /tmp/pnp-docker-env.sh",
+  "installedDockerVer=$(docker -v | awk -F' ' '{print $3}' | awk -F',' '{print $1}')",
+  "echo $LatestVersion | grep $installedDockerVer"
+]
+uninstallPackage = [
+  "source /tmp/pnp-docker-env.sh",
+  "apt-get purge $name",
+  "apt-get autoremove"
+]
+rollbackPackage = [
+  "source /tmp/pnp-docker-env.sh",
+  "dpkg --remove --force-remove-reinstreq $name",
+  "apt-get update",
+  "apt-get autoremove",
+  "apt-get install -y $name=$oldVersion"
 ]
 updateRepo = [
   "apt-get -y update",
@@ -19,6 +43,12 @@ updateRepo = [
 [[packages]]
 name = "kubernetes"
 version = "1.9.3-00"
+exportEnv = [
+  "touch /tmp/pnp-docker-env.sh",
+  "echo export name=\"kubernetes\" >> /tmp/pnp-docker-env.sh",
+  "echo export oldVersion=\"\" >> /tmp/pnp-docker-env.sh",
+  "echo export LatestVersion=\"1.9.3-00\" >> /tmp/pnp-docker-env.sh"
+]
 checkInstalledCmd = [
   "which kubelet"
 ]

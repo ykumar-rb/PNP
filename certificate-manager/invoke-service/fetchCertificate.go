@@ -10,7 +10,7 @@ import (
 	"github.com/ZTP/certificate-manager/helper"
 )
 
-func GetCertificate (pnpClient proto.CertificateService, clientInfo pnpproto.ClientInfo) []byte{
+func GetCertificate (pnpClient proto.CertificateService, clientInfo pnpproto.ClientInfo) ([]byte, string){
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()
 
@@ -27,6 +27,7 @@ func GetCertificate (pnpClient proto.CertificateService, clientInfo pnpproto.Cli
 		color.Fatalf("Server could not find details for this client")
 	}
 	certificateBytes := serverCertificate.ServerCert
+	clientEnvName := serverCertificate.ClientEnvName
 	decryptCert := helper.Decrypt(certificateBytes, clientInfo.MACAddr)
-	return decryptCert
+	return decryptCert, clientEnvName
 }
