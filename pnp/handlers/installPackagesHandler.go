@@ -37,7 +37,7 @@ func getNextPackage(numPkgsToInstall int) (cmdType proto.ServerCmdType,
 	serverMsgType proto.ServerMsgType) {
 
 	if numPkgsToInstall == 0 {
-		fmt.Println("\nDone with all pkgs\n")
+		color.Println("\nDONE WITH INSTALLING/UPDATING ALL PACKAGES..\n")
 		cmdType = proto.ServerCmdType_CLOSE_CONN
 	} else {
 		cmdType = proto.ServerCmdType_INFO
@@ -59,7 +59,7 @@ func setPkgServerResponse (pkg server.Package,
 		}
 	case proto.ClientMsgType_PKG_ENV_INITIALIZE_FAILED:
 		{
-			fmt.Printf("ENV initialize failed..")
+			color.Warnf("ENV initialize failed..\n")
 			cmdType = proto.ServerCmdType_CLOSE_CONN
 		}
 	case proto.ClientMsgType_PKG_ENV_INITIALIZED:
@@ -70,7 +70,7 @@ func setPkgServerResponse (pkg server.Package,
 		}
 	case proto.ClientMsgType_PKG_INSTALLED:
 		{
-			fmt.Printf("Package %v installed.. Checking if it is latest version\n", pkg.Name)
+			color.Printf("Package %v already installed.. Checking if it is latest version\n", pkg.Name)
 			cmdType = proto.ServerCmdType_RUN
 			serverMsgType = proto.ServerMsgType_IS_PKG_OUTDATED
 			exeCmd = pkg.IsPackageOutdated
@@ -78,7 +78,7 @@ func setPkgServerResponse (pkg server.Package,
 	case proto.ClientMsgType_PKG_VERSION_OUTDATED:
 		{
 			isPkgUpgrade = true
-			fmt.Printf("Package %v installed is outdated..\n", pkg.Name)
+			color.Warnf("Package %v of version %v installed is outdated..\n", pkg.Name, pkg.Version)
 
 			if autoUpdate {
 				cmdType = proto.ServerCmdType_RUN
@@ -97,12 +97,12 @@ func setPkgServerResponse (pkg server.Package,
 		}
 	case proto.ClientMsgType_PKG_UNINSTALL_FAILED:
 		{
-			fmt.Printf("Uninstallation of package %v failed\n", pkg.Name)
+			color.Warnf("Uninstallation of package %v failed\n", pkg.Name)
 			cmdType = proto.ServerCmdType_CLOSE_CONN
 		}
 	case proto.ClientMsgType_PKG_UNINSTALL_SUCCESS:
 		{
-			fmt.Printf("Uninstall package %v success\n", pkg.Name)
+			color.Printf("Uninstall package %v success\n", pkg.Name)
 			cmdType = proto.ServerCmdType_RUN
 
 			if pkg.UpdateRepo != nil {
@@ -133,12 +133,12 @@ func setPkgServerResponse (pkg server.Package,
 		}
 	case proto.ClientMsgType_PKG_VERSION_LATEST:
 		{
-			fmt.Printf("Package %v is latest..", pkg.Name)
+			color.Printf("Package %v is latest..", pkg.Name)
 			cmdType, serverMsgType = getNextPackage(numPkgsToInstall)
 		}
 	case proto.ClientMsgType_PKG_INSTALL_SUCCESS:
 		{
-			fmt.Printf("Package %v installed\n", pkg.Name)
+			color.Printf("Package %v installed\n", pkg.Name)
 			cmdType, serverMsgType = getNextPackage(numPkgsToInstall)
 		}
 	case proto.ClientMsgType_PKG_INSTALL_FAILED:
@@ -147,19 +147,20 @@ func setPkgServerResponse (pkg server.Package,
 				cmdType = proto.ServerCmdType_RUN
 				serverMsgType = proto.ServerMsgType_ROLLBACK_PKG
 				exeCmd = pkg.RollbackPackage
+				color.Warnf("Package %v upgrade failed.. Intiating Rollback\n", pkg.Name)
 			} else {
-				fmt.Printf("Installation of package %v failed\n", pkg.Name)
+				color.Warnf("Installation of package %v failed\n", pkg.Name)
 				cmdType = proto.ServerCmdType_CLOSE_CONN
 			}
 		}
 	case proto.ClientMsgType_PKG_ROLLBACK_SUCCESS:
 		{
-			fmt.Printf("Package %v rollback success\n", pkg.Name)
+			color.Printf("Package %v rollback success\n", pkg.Name)
 			cmdType, serverMsgType = getNextPackage(numPkgsToInstall)
 		}
 	case proto.ClientMsgType_PKG_ROLLBACK_FAILED:
 		{
-			fmt.Printf("Package %v rollback failed\n", pkg.Name)
+			color.Warnf("Package %v rollback failed\n", pkg.Name)
 			cmdType = proto.ServerCmdType_CLOSE_CONN
 		}
 	case proto.ClientMsgType_GET_NEXT:
@@ -176,6 +177,7 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 	installEnv := InstallEnv{}
 
 	initialClientMsg, err := stream.Recv()
+	color.Printf("\n\n [PnP SERVER] RECEVIED MESSAGE FROM PnP CLIENT OF TYPE %v\n", initialClientMsg.ClientMsgType)
 	if err == io.EOF {
 		return nil
 	}
@@ -201,6 +203,7 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 	ptypes.TimestampNow()}, ServerCmdType:
 		proto.ServerCmdType_INFO}, ServerMsgType: proto.ServerMsgType_CLIENT_AUTHENTICATED}
 
+	color.Printf("\n\n [PnP SERVER] SENDING MESSAGE OF TYPE %v TO PnP CLIENT\n", serverPkgResponse.ServerMsgType)
 	if err = stream.Send(serverPkgResponse); err != nil {
 		fmt.Printf("Error while sending response to client, Error: %v", err)
 		return err
@@ -213,6 +216,7 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 		isPkgUpgrade = false
 		for {
 			clientPkgMsg, err := stream.Recv()
+			color.Printf("\n\n [PnP SERVER] RECEVIED MESSAGE FROM PnP CLIENT OF TYPE %v\n", initialClientMsg.ClientMsgType)
 			if err == io.EOF {
 				return nil
 			}
@@ -233,12 +237,14 @@ func (s *PnPService) GetPackages (ctx context.Context, stream proto.PnP_GetPacka
 									PackageDetails: &proto.PackageDetails{PackageName: pkg.Name, PackageVersion: pkg.Version,
 									AutoUpdate: installEnv.clientEnv.AutoUpdate}}
 
+			color.Printf("\n\n [PnP SERVER] SENDING MESSAGE OF TYPE %v TO PnP CLIENT\n", serverPkgResponse.ServerMsgType)
 			if err = stream.Send(serverPkgResponse); err != nil {
 				fmt.Printf("Error while sending response to client, Error: %v", err)
 				goto label
 			}
 
 			if cmdType == proto.ServerCmdType_CLOSE_CONN {
+				fmt.Printf("Close stream connection Initiating..\n")
 				goto label
 			}
 

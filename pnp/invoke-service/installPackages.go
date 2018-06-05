@@ -11,6 +11,7 @@ import (
 	"github.com/go-redis/redis"
 	proto "github.com/ZTP/pnp/pnp-proto"
 	"strings"
+	"github.com/ZTP/pnp/common/color"
 )
 
 type SoftwareDB struct {
@@ -46,28 +47,37 @@ func setPkgMsgType(serverPkgResp proto.ServerPkgResponse, exeErr error) (clientP
 	case proto.ServerMsgType_CLIENT_AUTHENTICATED:
 		{
 			clientPkgMsgType = proto.ClientMsgType_PKG_ENV_INIT
+			color.Println("Initializing client environment..")
 		}
 	case proto.ServerMsgType_INITIALIZE_ENV:
 		{
 			if exeErr == nil {
+				color.Println("Client environment initialized successfully.")
 				clientPkgMsgType = proto.ClientMsgType_PKG_ENV_INITIALIZED
 			} else {
+				color.Warnln("Client environment failed to initialize")
 				clientPkgMsgType = proto.ClientMsgType_PKG_ENV_INITIALIZE_FAILED
 			}
 		}
 	case proto.ServerMsgType_IS_PKG_INSTALLED:
 		{
 			if exeErr == nil {
+				color.Printf("Package %v of version %v already installed.\n", serverPkgResp.PackageDetails.PackageName,
+					serverPkgResp.PackageDetails.PackageVersion)
 				clientPkgMsgType = proto.ClientMsgType_PKG_INSTALLED
 			} else {
+				color.Warnf("Package %v is not installed. Starting installation..\n", serverPkgResp.PackageDetails.PackageName)
 				clientPkgMsgType = proto.ClientMsgType_PKG_NOT_INSTALLED
 			}
 		}
 	case proto.ServerMsgType_IS_PKG_OUTDATED:
 		{
 			if exeErr == nil {
+				color.Printf("Package %v is latest.\n", serverPkgResp.PackageDetails.PackageName)
 				clientPkgMsgType = proto.ClientMsgType_PKG_VERSION_LATEST
 			} else {
+				color.Warnf("Package %v of version %v is outdated.\n", serverPkgResp.PackageDetails.PackageName,
+					serverPkgResp.PackageDetails.PackageVersion)
 				clientPkgMsgType = proto.ClientMsgType_PKG_VERSION_OUTDATED
 			}
 		}
@@ -75,8 +85,12 @@ func setPkgMsgType(serverPkgResp proto.ServerPkgResponse, exeErr error) (clientP
 		{
 			if serverPkgResp.CommonServerResponse.ServerCmdType != proto.ServerCmdType_MANUAL_UPDATE {
 				if exeErr == nil {
+					color.Printf("Package %v of version %v uninstalled.\n", serverPkgResp.PackageDetails.PackageName,
+						serverPkgResp.PackageDetails.PackageVersion)
 					clientPkgMsgType = proto.ClientMsgType_PKG_UNINSTALL_SUCCESS
 				} else {
+					color.Warnf("Package %v of version %v failed to uninstall.\n", serverPkgResp.PackageDetails.PackageName,
+						serverPkgResp.PackageDetails.PackageVersion)
 					clientPkgMsgType = proto.ClientMsgType_PKG_UNINSTALL_FAILED
 					SetDataInDB(DBClient, &SoftwareDB{Name: serverPkgResp.PackageDetails.PackageName, Version:
 					serverPkgResp.PackageDetails.PackageVersion, AvailVersion: serverPkgResp.PackageDetails.PackageVersion,
@@ -97,11 +111,15 @@ func setPkgMsgType(serverPkgResp proto.ServerPkgResponse, exeErr error) (clientP
 		{
 			if serverPkgResp.CommonServerResponse.ServerCmdType != proto.ServerCmdType_MANUAL_UPDATE {
 				if exeErr == nil {
+					color.Printf("Package %v of version %v installed.\n", serverPkgResp.PackageDetails.PackageName,
+						serverPkgResp.PackageDetails.PackageVersion)
 					clientPkgMsgType = proto.ClientMsgType_PKG_INSTALL_SUCCESS
 					SetDataInDB(DBClient, &SoftwareDB{Name: serverPkgResp.PackageDetails.PackageName, Version:
 					serverPkgResp.PackageDetails.PackageVersion, AvailVersion: serverPkgResp.PackageDetails.PackageVersion,
 						Action: "NOACTION", Status:"Install package Success", Install: "-", UnInstall: "-", Rollback: "-"})
 				} else {
+					color.Warnf("Package %v of version %v failed to install.\n", serverPkgResp.PackageDetails.PackageName,
+						serverPkgResp.PackageDetails.PackageVersion)
 					clientPkgMsgType = proto.ClientMsgType_PKG_INSTALL_FAILED
 					SetDataInDB(DBClient, &SoftwareDB{Name: serverPkgResp.PackageDetails.PackageName, Version:
 					serverPkgResp.PackageDetails.PackageVersion, AvailVersion: serverPkgResp.PackageDetails.PackageVersion,
@@ -154,13 +172,15 @@ func InitPkgMgmt(pnpClient proto.PnPService, clientInfo proto.ClientInfo) {
 	serverPkgResp := &proto.ServerPkgResponse{}
 
 	for {
+		color.Printf("\n\n [PnP CLIENT] SENDING MESSAGE OF TYPE %v TO PnP SERVER\n", clientMsg.ClientMsgType)
 		if err = stream.Send(clientMsg); err != nil {
 			log.Fatalf("Failed to send client message, Error: %v", err)
 		}
 
 		serverPkgResp, err = stream.Recv()
+		color.Printf("\n\n [PnP CLIENT] RECEIVED MESSAGE FROM PnP SERVER OF TYPE %v\n", serverPkgResp.ServerMsgType)
 		if err == io.EOF || serverPkgResp.CommonServerResponse.GetServerCmdType() == proto.ServerCmdType_CLOSE_CONN {
-			fmt.Println("\nClosing connection...")
+			fmt.Println("\nClosing stream connection...")
 			stream.Close()
 			break
 		}

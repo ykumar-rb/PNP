@@ -86,11 +86,10 @@ func main() {
 	)
 
 	color.Println("Initializing package management...")
-
 	invoke.InitPkgMgmt(pnpClient, clientInfo)
 
 	if err := micro.RegisterSubscriber(clientEnvName, service.Server(), initiateClientUpdate); err != nil {
-		color.Warnf("Unable to subscribe topic %v", clientEnvName)
+		color.Warnf("Unable to subscribe topic %v, Error: %v", clientEnvName, err)
 		os.Exit(1)
 	}
 	if err := service.Run(); err != nil {
@@ -100,7 +99,7 @@ func main() {
 
 func initiateClientUpdate(cxt context.Context, event *publisher.Event) error {
 	md, _ := metadata.FromContext(cxt)
-	color.Printf("[PubSub] Received update event %v with metatdata %v\n.. Initiating package update", event, md)
+	color.Printf("[PubSub] Received update event with metatdata %v\n.. Initiating package update", md)
 	invoke.InitPkgMgmt(pnpClient, clientInfo)
 	return nil
 }
