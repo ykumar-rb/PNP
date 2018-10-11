@@ -12,5 +12,5 @@ Plug-n-Play serves the following purpose:
 4. Certificate Manager :- Component to assist certificate management on the PnP-Server. This component provides PnP-client with the certificates to start a secure communication with PnP-server using Grpc & TLS.
 
 #### Steps to setup SDP-ZTP:
-1. To setup ZTP with matchbox, PnP & Certificate Manager components, follow the instructions present in (https://github.com/RiverbedTechnology/sdp-ztp/tree/master/ZTP).
-2. To run only the PnP-Server/Client, Onboarder and Certificate Manager, run the Onboarder webservice first (https://github.com/RiverbedTechnology/sdp-ztp/tree/master/onboarder)  followed by CertificateManager service (https://github.com/RiverbedTechnology/sdp-ztp/tree/master/certificate-manager), then start the PnP Server & Client (https://github.com/RiverbedTechnology/sdp-ztp/tree/master/pnp).
+1. To setup ZTP with matchbox, PnP & Certificate Manager components, follow the instructions present in (https://github.com/ztp/tree/master/ZTP).
+2. To run only the PnP-Server/Client, Onboarder and Certificate Manager, run the Onboarder webservice first (https://github.com/ztp/tree/master/onboarder)  followed by CertificateManager service (https://github.com/ztp/tree/master/certificate-manager), then start the PnP Server & Client (https://github.com/ztp/tree/master/pnp).
